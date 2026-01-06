@@ -4,7 +4,6 @@ const { USER } = require("../utils/constants");
 
 // Middlewares
 const { protect, allowedTo } = require("../middlewares/auth.middleware");
-const upload = require("../middlewares/upload.middleware");
 // Classes
 const UserAuthController = require("../controllers/userAuth.controller");
 const UserResetPasswordController = require("../controllers/userResetPassword.controllers");
