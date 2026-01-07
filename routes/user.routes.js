@@ -23,6 +23,10 @@ router
         allowedTo(USER),
         UserValidator.validateUpdateUser,
         UserController.updateMe
+    ).delete(
+        protect,
+        allowedTo(USER),
+        UserController.deactivateMe
     )
 
 module.exports = router;
