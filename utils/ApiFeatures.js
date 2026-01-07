@@ -11,6 +11,7 @@ class ApiFeatures {
         // search fields for each model
         const searchFields = {
             User: ["fullName","email","phone"],
+            Doctor: ["fullName","email","phone"],
         };
 
         const fields = searchFields[this.modelName];
