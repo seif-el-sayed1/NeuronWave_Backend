@@ -169,6 +169,7 @@ class UserController {
                     phone: req.body.phone,
                     dateOfBirth: req.body.dateOfBirth,
                     loginType: req.body.loginType,
+                    emergencyContact: req.body.emergencyContact,
                     notificationToken: req.body.notificationToken,
                     password: req.body.password
                 }
