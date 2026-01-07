@@ -30,6 +30,41 @@ class DoctorController {
         });
     });
 
+    //@desc Get My Profile
+    //@route GET /api/v1/users/me
+    //@access Private
+    getMyProfile = asyncHandler(async (req, res, next) => {
+        const user = await Doctor.findById(req.user._id)
+                .select("fullName phone email profilePicture createdAt role medicalSpecialty medicalLicenseNumber hospital")
+
+        if (!user) return next(new ApiError("Doctor not found", 404));
+
+        res.status(200).json({
+            success: true,
+            user,
+        });
+    });
+    
+    //@desc Update me
+    //@route PUT /api/v1/users/:id
+    //@access Private
+    updateMe = asyncHandler(async (req, res, next) => {
+        const oldUser = await Doctor.findById(req.user._id);
+        if (!oldUser) return next(new ApiError("Doctor not found", 404));
+        
+        const user = await Doctor.findByIdAndUpdate(req.user._id, req.body, {
+            new: true,
+            runValidators: true,
+        }).select("fullName phone email profilePicture createdAt role medicalSpecialty medicalLicenseNumber hospital")
+
+        if (!user) return next(new ApiError("Doctor not found", 404));
+
+        res.status(200).json({
+            success: true,
+            user,
+        });
+    });
+
     
 }
 
