@@ -25,6 +25,15 @@ router
         protect,
         allowedTo(DOCTOR),
         DoctorController.getMyProfile
+    ).patch(
+        protect,
+        allowedTo(DOCTOR),
+        DoctorValidator.validateUpdateDoctor,
+        DoctorController.updateMe
+    ).delete(
+        protect,
+        allowedTo(DOCTOR),
+        DoctorController.deactivateMe
     )
 
 module.exports = router;
