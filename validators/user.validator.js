@@ -42,21 +42,12 @@ class UserValidator {
 
       phone: Joi.string().custom(phoneNumberValidator).required().messages({
         "any.required": "Phone is required",
-        "string.pattern.base": "Invalid Phone Number",
       }),
 
-      genderEn: Joi.string()
-        .valid(...GENDER_LIST_EN)
-        .required()
-        .messages({ "any.required": "Gender is required" }),
-
-      genderAr: Joi.string()
-        .valid(...GENDER_LIST_AR)
-        .optional(),
+      gender: Joi.string().valid("male", "female", "ذكر", "انثي").required(),
 
       emergencyContact: Joi.string().custom(phoneNumberValidator).required().messages({
         "any.required": "Emergency Contact is required",
-        "string.pattern.base": "Invalid Phone Number",
       }),
 
       dateOfBirth: Joi.date()
@@ -100,31 +91,13 @@ class UserValidator {
         "any.required": "Phone number is required",
       }),
       email: Joi.string().email().optional(),
-      genderEn: Joi.string()
-        .valid(...GENDER_LIST_EN)
-        .optional(),
-      genderAr: Joi.string()
-        .valid(...GENDER_LIST_AR)
-        .optional(),
-      dateOfBirth: Joi.date().optional(),
+      gender: Joi.string().valid("male", "female", "ذكر", "انثي").optional(),
       emergencyContact: Joi.string().custom(phoneNumberValidator).optional().messages({
-        "string.pattern.base":
-        "Emergency contact number must start with '0' and contain exactly 11 digits",
         "any.required": "Emergency contact number is required",
       }),
       // Validate location using the defined schema
     });
     joiErrorHandler(schema, req);
-    if (genderEn) {
-      switch (genderEn.toLowerCase()) {
-        case "male":
-          req.body.genderAr = "ذكر";
-          break;
-        case "female":
-          req.body.genderAr = "أنثى";
-          break;
-      }
-    }
     checkIfPhoneStartsWithPlus2(req);
     let { phone, email } = req.body;
     if (phone) {
@@ -196,27 +169,6 @@ class UserValidator {
         new ApiError(translate("User Not Found!", req.headers.lang), 404)
       );
     req.requestedUser = user; // this is the intendedUser to add action on him
-    next();
-  });
-
-  validateDeleteImages = asyncHandler(async (req, res, next) => {
-    const schema = Joi.object({
-      deletedPhotos: Joi.array().items(Joi.string()).required(), // Limiting images to a maximum of 4,
-      type: Joi.string()
-        .required()
-        .valid(...USER_TYPE_LIST),
-    });
-    joiErrorHandler(schema, req);
-
-    let { id: _id } = req.params;
-    let requestedUser = await User.findById(_id, null, {
-      skipPopulation: true,
-    });
-    if (!requestedUser)
-      return next(
-        new ApiError(translate("User Not Found!", req.headers.lang), 404)
-      );
-    req.requestedUser = requestedUser;
     next();
   });
 
