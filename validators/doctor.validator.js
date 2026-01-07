@@ -51,6 +51,8 @@ class DoctorValidator {
         "array.includes": "Invalid Medical Specialty",
       }),
 
+      gender: Joi.string().valid("male", "female", "ذكر", "انثي").required(),
+      
       loginType: Joi.string().optional(),
 
       password: Joi.string()
@@ -87,6 +89,7 @@ class DoctorValidator {
         "any.required": "Phone number is required",
       }),
       email: Joi.string().email().optional(),
+      gender: Joi.string().valid("male", "female", "ذكر", "انثي").required(),
 
       medicalSpecialty: Joi.valid(...MEDICAL_SPECIALTIES).optional().messages({
         "array.includes": "Invalid Medical Specialty",

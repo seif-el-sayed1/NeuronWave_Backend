@@ -29,6 +29,11 @@ const doctorSchema = mongoose.Schema(
       type: String,
       default: DOCTOR
     },
+    gender: {
+        type: String,
+        enum: ["male", "female", "ذكر", "انثي"],
+        lower: true
+    },
     email: {
       type: String,
       trim: true,
