@@ -10,7 +10,7 @@ class DoctorController {
     //@access Public
     getAllDoctors = asyncHandler(async (req, res, next) => {
         const apiFeatures = new ApiFeatures(Doctor.find({isActive: true}) .select(
-            "fullName phone email createdAt role medicalSpecialty medicalLicenseNumber hospital"
+            "fullName phone email createdAt role medicalSpecialty"
         ), req.query, 'Doctor')
             .search()
             .filter()
@@ -35,7 +35,7 @@ class DoctorController {
     //@access Private
     getMyProfile = asyncHandler(async (req, res, next) => {
         const user = await Doctor.findById(req.user._id)
-                .select("fullName phone email profilePicture createdAt role medicalSpecialty medicalLicenseNumber hospital")
+                .select("fullName phone email profilePicture createdAt role medicalSpecialty")
 
         if (!user) return next(new ApiError("Doctor not found", 404));
 
@@ -55,7 +55,7 @@ class DoctorController {
         const user = await Doctor.findByIdAndUpdate(req.user._id, req.body, {
             new: true,
             runValidators: true,
-        }).select("fullName phone email profilePicture createdAt role medicalSpecialty medicalLicenseNumber hospital")
+        }).select("fullName phone email profilePicture createdAt role medicalSpecialty medicalLicenseNumber")
 
         if (!user) return next(new ApiError("Doctor not found", 404));
 
