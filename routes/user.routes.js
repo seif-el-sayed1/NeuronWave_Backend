@@ -18,6 +18,11 @@ router
         protect,
         allowedTo(USER),
         UserController.getMyProfile
+    ).patch(
+        protect,
+        allowedTo(USER),
+        UserValidator.validateUpdateUser,
+        UserController.updateMe
     )
 
 module.exports = router;
