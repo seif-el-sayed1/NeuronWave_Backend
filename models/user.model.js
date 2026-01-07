@@ -8,6 +8,7 @@ const {
   LOGIN_TYPE_LIST,
 } = require("../utils/constants");
 const localizationSetUp = require("../utils/modelLocalizationSetUp");
+const { type } = require("os");
 
 const userSchema = mongoose.Schema(
   {
@@ -23,36 +24,66 @@ const userSchema = mongoose.Schema(
     },
     fullName: {
       type: String,
-      trim: true
+      trim: true,
+      required: true,                    
     },
     role: {
       type: String,
       default: USER
     },
-    genderEn: {
-      type: String,
-      enum: ["male", "female"],
-      lower: true
-    },
-    genderAr: {
-      type: String,
-      enum: ["ذكر", "أنثى"]
+    doctor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Doctor"
     },
     email: {
       type: String,
       trim: true,
       lowercase: true
     },
-    dateOfBirth: {
-      type: Date
-    },
     phone: {
       type: String,
       trim: true
     },
-    emergencyContact: {
+    age: {
+      type: Number,
+      min: 0
+    },
+    gender: {                              
+      type: String,
+      enum: ["male", "female", "ذكر", "انثي"],
+      lowercase: true
+    },
+    address: {
+      type: String,
+    },
+    emergencyContact: {                    
       type: String,
       trim: true
+    },
+    medicalHistory: {
+      type: String,
+      trim: true
+    },
+    diagnosis: {
+      type: String,
+      trim: true
+    },
+    notes: {
+      type: String,
+    },
+    lastVisit: {
+      type: Date,
+    },
+    registerType: {
+      type: String,
+      enum: ["byApp", "byDoctor"],
+      default: "byApp"                     
+    },
+    dateOfBirth: {
+      type: Date
+    },
+    lastVisit: {
+      type: Date
     },
     // Password
     password: {
@@ -96,32 +127,29 @@ const userSchema = mongoose.Schema(
   },
   { timestamps: true}
 );
+
 userSchema.index({ location: "2dsphere" });
 
-// Creating a partial unique index
 userSchema.index(
-  { phone: 1 }, // The field to index
+  { phone: 1 },
   {
-    unique: true, // Enforce uniqueness
-    partialFilterExpression: { phone: { $exists: true } } // Apply uniqueness only when `phone` is not null
+    unique: true,
+    partialFilterExpression: { phone: { $exists: true } }
   }
 );
 userSchema.index(
-  { email: 1 }, // The field to index
+  { email: 1 },
   {
-    unique: true, // Enforce uniqueness
-    partialFilterExpression: { email: { $exists: true } } // Apply uniqueness only when `email` is not null
+    unique: true,
+    partialFilterExpression: { email: { $exists: true } }
   }
 );
 
-// Model Localization
-userSchema.set("toJSON", {
-  virtuals: true,
-  transform: localizationSetUp(["gender"])
-});
+userSchema.index({ doctor: 1 });
+
 
 userSchema.methods.generateToken = async function () {
-  const tokenExpDate = new Date(); // Get the current date
+  const tokenExpDate = new Date();
   tokenExpDate.setDate(
     tokenExpDate.getDate() + parseInt(process.env.JWT_EXPIRATION.toString().slice(0, -1))
   );
@@ -135,10 +163,9 @@ userSchema.methods.generateToken = async function () {
       expiresIn: process.env.JWT_EXPIRATION
     }
   );
-  // Save the generated token to the database
   this.token = token;
   this.tokenExpDate = tokenExpDate;
-  this.updatePassword = false; // to skip hashing the password
+  this.updatePassword = false;
 
   await this.save();
 
@@ -151,16 +178,10 @@ userSchema.methods.comparePassword = async function (password) {
   } else return await bcrypt.compare(password, this.password);
 };
 
-//runs on changing the password to change the time that password changedAt
 userSchema.pre("save", async function (next) {
-  if (this.firstName && this.lastName) {
-    this.firstName = this.firstName.charAt(0).toUpperCase() + this.firstName.slice(1);
-    this.lastName = this.lastName.charAt(0).toUpperCase() + this.lastName.slice(1);
-  } else if (!this.firstName && this.loginType.toLowerCase() !== "email") this.firstName = "New";
-  else if (!this.lastName && this.loginType.toLowerCase() !== "email") this.lastName = "User";
   if (!this.password) return next();
   if (!this.isModified("password")) return next();
-  //hashing Password
+
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   this.passwordChangedAt = Date.now() - 1000;
@@ -168,16 +189,13 @@ userSchema.pre("save", async function (next) {
 });
 
 userSchema.methods.generatePasswordVerificationToken = async function (session) {
-  // Generate a random token
   const passwordCreationToken = crypto.randomBytes(32).toString("hex");
   console.log("Generated Token:", passwordCreationToken);
-  // Hash the token before storing it in the DB
   const hashedToken = crypto.createHash("sha256").update(passwordCreationToken).digest("hex");
 
-  // Set the token and expiration in the schema
   this.passwordVerificationToken = hashedToken;
-  this.passwordResetExpiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes expiry
-  // Save the admin document with the token
+  this.passwordResetExpiresAt = Date.now() + 10 * 60 * 1000;
+
   await this.save({ validateBeforeSave: false });
 
   return passwordCreationToken;
