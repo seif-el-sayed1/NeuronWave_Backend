@@ -51,14 +51,6 @@ class DoctorValidator {
         "array.includes": "Invalid Medical Specialty",
       }),
 
-      medicalLicenseNumber: Joi.number().required().messages({
-        "any.required": "Medical License Number is required",
-      }),
-
-      hospital: Joi.string().required().messages({
-        "any.required": "Hospital is required",
-      }),
-
       loginType: Joi.string().optional(),
 
       password: Joi.string()
@@ -96,11 +88,9 @@ class DoctorValidator {
       }),
       email: Joi.string().email().optional(),
 
-      medicalSpecialty: Joi.array().items(Joi.string().valid(...MEDICAL_SPECIALTIES)).optional().messages({
+      medicalSpecialty: Joi.valid(...MEDICAL_SPECIALTIES).optional().messages({
         "array.includes": "Invalid Medical Specialty",
       }),
-      medicalLicenseNumber: Joi.number().optional(),
-      hospital: Joi.string().optional(),
       
       // Validate location using the defined schema
     });
