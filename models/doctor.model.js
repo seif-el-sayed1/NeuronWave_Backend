@@ -43,15 +43,6 @@ const doctorSchema = mongoose.Schema(
         enum: MEDICAL_SPECIALTIES,
         required: true
     },
-    medicalLicenseNumber: {
-        type: Number,
-        required: true,
-        unique: true
-    },
-    hospital: {
-        type: String,
-        trim: true
-    },
     // Password
     password: {
       type: String,
