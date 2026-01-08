@@ -26,6 +26,19 @@ router.route("/")
         PatientsController.getAllPatients
     )
 
+router.route("/:id/note")
+    .patch(
+        protect,
+        allowedTo(DOCTOR),
+        PatientsController.addPatientNote
+    )
+
+router.route("/:id")
+    .get(
+        protect,
+        allowedTo(DOCTOR),
+        PatientsController.getOnePatient
+    )
 
 module.exports = router;
 
