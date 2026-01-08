@@ -1,8 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../utils/ApiError");
 const ApiFeatures = require("../utils/ApiFeatures");
-const Doctor = require("../models/doctor.model")
-const Patient = require("../models/patient.model");
 const  User = require("../models/user.model");
 class PatientsController {
 
