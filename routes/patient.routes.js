@@ -39,6 +39,17 @@ router.route("/:id")
         allowedTo(DOCTOR),
         PatientsController.getOnePatient
     )
+    .patch(
+        protect,
+        allowedTo(DOCTOR),
+        PatientValidator.validateUpdatePatient,
+        PatientsController.updatePatient
+    )
+    .delete(
+        protect,
+        allowedTo(DOCTOR),
+        PatientsController.deletePatient
+    )
 
 module.exports = router;
 
