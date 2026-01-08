@@ -94,7 +94,58 @@ class PatientsController {
         });
     });
 
-    
+    //@desc Update Patient
+    //@route PATCH /patients/:id
+    //@access Public
+    updatePatient = asyncHandler(async (req, res, next) => {
+
+        const patient = await User.findById(req.params.id);
+        if (!patient) {
+            return next(new ApiError("Patient not found", 404));
+        }
+
+        if (patient.registerType === "byApp") {
+            return next(new ApiError("You are not allowed to update this patient", 403));
+        }
+
+        Object.assign(patient, req.body);
+        await patient.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Patient updated successfully",
+            data: patient
+        });
+    });
+
+    //@desc Delete Patient
+    //@route DELETE /patients/:id
+    //@access Public
+    deletePatient = asyncHandler(async (req, res, next) => {
+
+        const patient = await User.findById(req.params.id);
+        if (!patient) {
+            return next(new ApiError("Patient not found", 404));
+        }
+
+        if (patient.registerType === "byApp") {
+            return next(new ApiError("You are not allowed to update this patient", 403));
+        }
+
+        if (patient.doctor.toString() !== req.user._id.toString()) {
+            return next(new ApiError("You are not allowed to delete this patient", 403));
+        }
+
+        await patient.deleteOne();
+
+        res.status(200).json({
+            success: true,
+            message: "Patient deleted successfully",
+            data: patient
+        });
+    });
+
+
 }
 
 module.exports = new PatientsController();
