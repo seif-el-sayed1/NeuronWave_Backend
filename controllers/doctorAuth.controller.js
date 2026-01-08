@@ -22,6 +22,7 @@ class DoctorController {
       medicalSpecialty: doctor.medicalSpecialty,
       createdAt: doctor.createdAt,
       loginType: doctor.loginType,
+      notificationToken: doctor.notificationToken
     };
   };
 
