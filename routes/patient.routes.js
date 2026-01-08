@@ -20,6 +20,12 @@ router.route("/")
         PatientValidator.validateAddPatient,
         PatientsController.addPatient
     )
+    .get(
+        protect,
+        allowedTo(DOCTOR),
+        PatientsController.getAllPatients
+    )
+
 
 module.exports = router;
 
