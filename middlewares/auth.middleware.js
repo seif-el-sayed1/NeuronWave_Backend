@@ -95,13 +95,3 @@ exports.allowedTo = (...roles) =>
       return next(new ApiError(translate("Not allowed to access this route", req.headers.lang), 403));
     next();
   });
-
-// // === Check for user permission based on permission group ===
-// exports.authorization = (permissionName) =>
-//   asyncHandler(async (req, res, next) => {
-//     if (req.user.) return next();
-//     const permissions = req.user.permissionGroup;
-//     if (!permissions || !permissions[permissionName])
-//       return next(new ApiError(translate("Permission not granted", req.headers.lang), 401));
-//     next();
-//   });
