@@ -30,7 +30,24 @@ class PatientValidator {
         next();
     });
 
-    
+    validateUpdatePatient = asyncHandler(async (req, res, next) => {
+        const schema = Joi.object({
+            fullName: Joi.string().optional(),
+            email: Joi.string().email().optional(),
+            phone: Joi.string().custom(phoneNumberValidator).optional(),
+            age: Joi.number().min(0).optional(),
+            gender: Joi.string().valid("male", "female", "ذكر", "انثي").optional(),
+            address: Joi.string().optional(),
+            emergencyContact: Joi.string().custom(phoneNumberValidator).optional(),
+            medicalHistory: Joi.string().optional(),
+            diagnosis: Joi.string().optional(),
+        });
+
+        joiErrorHandler(schema, req);
+        checkIfPhoneStartsWithPlus2(req)
+
+        next();
+    });
 
 
 }
