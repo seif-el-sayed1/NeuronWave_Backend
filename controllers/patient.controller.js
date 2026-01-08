@@ -52,9 +52,49 @@ class PatientsController {
         });
     });
 
+    //@desc Add Patient Note
+    //@route PATCH /patients/:id/note
+    //@access Public
+    addPatientNote = asyncHandler(async (req, res, next) => {
+
+        if (!req.body.notes) {
+            return next(new ApiError("Notes field is required", 400));
+        }
+
+        const patient = await User.findById(req.params.id).select(
+            "fullName phone email createdAt role lastVisit notes address dateOfBirth age gender emergencyContact medicalHistory diagnosis registerType address"
+        );
+        if (!patient) {
+            return next(new ApiError("Patient not found", 404));
+        }
+
+        patient.notes = req.body.notes;
+        await patient.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Patient note added successfully",
+            data: patient
+        });
+    });
+
+    //@desc get one Patient
+    //@route GET /patients/:id
+    //@access Public
+    getOnePatient = asyncHandler(async (req, res, next) => {
+        const patient = await User.findById(req.params.id).select(
+            "fullName phone email createdAt role notes address lastVisit dateOfBirth age gender emergencyContact medicalHistory diagnosis registerType address"
+        );
+        if (!patient) {
+            return next(new ApiError("Patient not found", 404));
+        }
+        res.status(200).json({
+            success: true,
+            data: patient
+        });
+    });
+
     
-
-
 }
 
 module.exports = new PatientsController();
