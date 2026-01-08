@@ -24,6 +24,7 @@ class UserController {
       emergencyContact: user.emergencyContact,
       createdAt: user.createdAt,
       loginType: user.loginType,
+      notificationToken: user.notificationToken,
     };
   };
 
