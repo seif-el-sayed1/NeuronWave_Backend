@@ -12,6 +12,7 @@ class ApiFeatures {
         const searchFields = {
             User: ["fullName","email","phone"],
             Doctor: ["fullName","email","phone"],
+            Notification: ["body"],
         };
 
         const fields = searchFields[this.modelName];
