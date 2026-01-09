@@ -67,6 +67,39 @@ class NotificationController {
     });
 });
 
+  /**
+   * @desc    Mark one notification as Seen
+   * @route   PATCH /notifications/mark/:id/seen
+   * @access  Private
+   */
+  markNotificationAsSeen = asyncHandler(async (req, res, next) => {
+      const { id } = req.params;
+
+      const notification = await Notification.findById(id);
+      if (!notification) {
+          return next(new ApiError("Notification not found", 404));
+      }
+
+      await notification.updateOne({ seen: true });
+
+      res.status(200).json({
+          success: true,
+          message: "Notification is seen successfully"
+      });
+  });
+
+  /**
+   * @desc    Mark all notifications as Seen
+   * @route   PATCH /notifications/mark/all/seen
+   * @access  Private
+   */
+  markAllNotificationsAsSeen = asyncHandler(async (req, res, next) => {
+    await Notification.updateMany({ user: req.user._id }, { seen: true });
+    res.status(200).json({
+      success: true,
+      message: "Notifications are Marked seen successfully"
+    });
+  });
 
 }
 
