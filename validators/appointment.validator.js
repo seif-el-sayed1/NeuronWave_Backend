@@ -89,6 +89,43 @@ class AppointmentValidator {
         next();
     });
 
+    validateUpdateAppointmentTime = asyncHandler(async (req, res, next) => {
+        const schema = Joi.object({
+            date: Joi.date().optional(),
+            time: Joi.string()
+                .pattern(/^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i)
+                .optional()
+        });
+
+        joiErrorHandler(schema, req);
+
+        const appointmentId = req.params.id;
+        const { date, time } = req.body;
+
+        const currentAppointment = await Appointment.findById(appointmentId);
+        if (!currentAppointment) {
+            return next(new ApiError("Appointment not found", 404));
+        }
+
+        // Check if user is either the patient or the doctor of this appointment
+        const userId = req.user._id.toString();
+        if (
+            userId !== currentAppointment.patient.toString() &&
+            userId !== currentAppointment.doctor.toString()
+        ) {
+            return next(new ApiError("You are not allowed to update this appointment", 403));
+        }
+
+        const newDate = date || currentAppointment.date;
+        const newTime = time || currentAppointment.time;
+        const startTime = this.buildDateTime(newDate, newTime);
+
+        if (startTime < new Date()) {
+            return next(new ApiError("Appointment date and time cannot be in the past", 400));
+        }
+
+        next();
+    });
 
 }
 
