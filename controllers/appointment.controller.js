@@ -102,6 +102,101 @@ class AppointmentController {
         });
     });
 
+    // @desc Delete appointment by user
+    // @route DELETE /appointments/:id
+    // @access Public
+    deleteAppointment = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+
+        const appointment = await Appointment.findByIdAndDelete(id);
+
+        if (!appointment) {
+            return next(new ApiError('Appointment not found', 404));
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Appointment deleted successfully",
+            data: appointment
+        });
+    })
+
+    // @desc Change appointment status
+    // @route PATCH /appointments/:id/status
+    // @access Public
+    changeAppointmentStatus = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+        const { status, rejectionReason } = req.body;
+
+        if (!APPOINTMENT_STATUS.includes(status)) {
+            return next(new ApiError(`Invalid status. Allowed values: ${APPOINTMENT_STATUS.join(', ')}`, 400));
+        }
+
+        const appointment = await Appointment.findById(id);
+        if (!appointment) {
+            return next(new ApiError('Appointment not found', 404));
+        }
+
+        if (appointment.status !== "pending") {
+            return next(new ApiError('Only pending appointments can be changed', 400));
+        }
+        
+        if (req.user.role === USER && status !== 'canceled') {
+            return next(new ApiError('Patients can only change status to canceled', 403));
+        }
+
+        const userId = req.user._id.toString();
+        if (userId !== appointment.patient.toString() && userId !== appointment.doctor.toString()) {
+            return next(new ApiError('You are not allowed to change this appointment status', 403));
+        }
+
+        if (appointment.status === status) {
+            return res.status(400).json({
+                success: false,
+                message: `Appointment status is already ${status}`
+            });
+        }
+
+        if (status !== "rejected" && rejectionReason) {
+            return next(new ApiError("Rejection reason is only allowed when status is rejected", 400));
+        }
+
+        if (status === "rejected" && (!rejectionReason || rejectionReason.trim() === "")) {
+            return next(new ApiError("Rejection reason is required", 400));
+        }
+
+        appointment.status = status;
+
+        if (status === "rejected") {
+            appointment.rejectionReason = rejectionReason;
+        } else {
+            appointment.rejectionReason = undefined; 
+        }
+
+        if (status !== "accepted") {
+            if (req.user.role === DOCTOR) {
+                const patient = await User.findById(appointment.patient).select("_id notificationToken");
+                if (!patient) {
+                    return next(new ApiError('Patient not found', 404));
+                }
+    
+            } else {
+                const doctor = await Doctor.findById(appointment.doctor).select("_id notificationToken");
+                if (!doctor) {
+                    return next(new ApiError('Doctor not found', 404));
+                }
+            }
+        }            
+
+
+        await appointment.save();
+
+        res.status(200).json({
+            success: true,
+            message: `Appointment status updated successfully to ${status}`,
+            data: appointment
+        });
+    });
 
      // TODO :  markAsAttended to change last visit
 }
