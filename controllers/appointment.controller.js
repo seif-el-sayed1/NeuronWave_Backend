@@ -21,6 +21,32 @@ class AppointmentController {
         })
     })
 
+    //@desc Get My Appointments
+    //@route GET /appointments
+    //@access Public
+    getMyAppointments = asyncHandler(async (req, res, next) => {
+        const apiFeatures = new ApiFeatures(Appointment.find({ patient: req.user._id })
+            .populate('doctor', "fullName email phone")
+            .sort({ date: 1, time: 1 }),
+            req.query, 'Appointment')
+            .filter()
+            .paginate()
+            .cleanResponse();
+
+        // execute query
+        const appointments = await apiFeatures.query;
+
+        res.status(200).json({
+            success: true,
+            totalResults: appointments.length,
+            pagination: {
+                page: Number(req.query.page) || 1,
+                limit: Number(req.query.limit) || 20,
+            },
+            data: appointments
+        });
+    })
+
     
 
      // TODO :  markAsAttended to change last visit
