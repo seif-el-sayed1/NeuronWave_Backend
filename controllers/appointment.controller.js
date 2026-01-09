@@ -73,6 +73,35 @@ class AppointmentController {
         });
     })
 
+    // @desc update appointment by user
+    // @route PATCH /appointments/:id
+    // @access Public
+    updateAppointment = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+
+        const appointment = await Appointment.findById(id);
+        if (!appointment) {
+            return next(new ApiError('Appointment not found', 404));
+        }
+
+        if (appointment.status !== "accepted") {
+            return next(new ApiError('Appointment cannot be updated unless it is accepted', 400));
+        }
+        const updatedAppointment = await Appointment.findByIdAndUpdate(id, req.body, { new: true });
+
+        const patient = await User.findById(appointment.patient).select("notificationToken _id");
+        if (!patient) {
+            return next(new ApiError('Patient not found', 404));
+        }
+
+
+        res.status(200).json({
+            success: true,
+            message: "Appointment Date Booked",
+            data: updatedAppointment
+        });
+    });
+
 
      // TODO :  markAsAttended to change last visit
 }
