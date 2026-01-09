@@ -8,12 +8,48 @@ const Notification = require("../models/notification.model");
 const { USER, APPOINTMENT_STATUS, DOCTOR } = require("../utils/constants")
 const { sendNotification } = require("../utils/sendNotification");
 class AppointmentController {
+    #sendNotificationHelper = async (appointment, user, notificationTitle, notificationBody, caseType) => {
+        let notification = {
+            token: user.notificationToken,
+            title: notificationTitle,
+            body: notificationBody,
+            case: caseType,
+            info: appointment._id.toString(),  
+            user: user._id
+        }
+
+        if (user.notificationToken) {
+            sendNotification({
+                token: user.notificationToken,
+                title: notificationTitle,
+                body: notificationBody,
+                caseType,
+                info: appointment._id.toString()
+            })
+            await Notification.create(notification);
+        }
+    }
 
     //@desc patient create appointment
     //@route POST /appointments
     //@access Public
     createAppointment = asyncHandler(async (req, res, next) => {
         const appointment = await Appointment.create(req.body);
+
+        if (req.user.role === USER) {
+            const doctor = await Doctor.findById(req.body.doctor).select("notificationToken _id");
+            if  (!doctor) {
+                return next(new ApiError("Doctor not found", 404));
+            }
+            await this.#sendNotificationHelper(
+                appointment,
+                doctor,
+                "You have a new appointment request",
+                `Patient ${req.user.fullName.split(" ")[0]} booked a new appointment. Please accept or reject the request.`,
+                "Appointment Request",
+            )
+        }
+
         res.status(201).json({
             success: true,
             message: "Appointment created successfully",
@@ -94,6 +130,13 @@ class AppointmentController {
             return next(new ApiError('Patient not found', 404));
         }
 
+        await this.#sendNotificationHelper(
+            appointment,
+            patient,
+            "Your appointment has been accepted!",
+            `Dr.${req.user.fullName.split(" ")[0]} accepted your appointment scheduled on ${req.body.date} at ${req.body.time}.`,
+            "Appointment Accepted"
+        );
 
         res.status(200).json({
             success: true,
@@ -180,11 +223,26 @@ class AppointmentController {
                     return next(new ApiError('Patient not found', 404));
                 }
     
+                await this.#sendNotificationHelper(
+                    appointment,
+                    patient,
+                    `Your appointment has been ${status}!`,
+                    `Dr.${req.user.fullName.split(" ")[0]} ${status} your appointment ${  status === "rejected" ? `- Reason: ${rejectionReason}` : ""}.`,
+                    "Appointment Status Updated",
+                )
             } else {
                 const doctor = await Doctor.findById(appointment.doctor).select("_id notificationToken");
                 if (!doctor) {
                     return next(new ApiError('Doctor not found', 404));
                 }
+    
+                await this.#sendNotificationHelper(
+                    appointment,
+                    doctor,
+                    `Appointment has been Canceled!`,
+                    `Patient ${req.user.fullName.split(" ")[0]} canceled the appointment `,
+                    "Appointment Status Updated",
+                )
             }
         }            
 
