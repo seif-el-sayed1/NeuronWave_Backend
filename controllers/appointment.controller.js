@@ -47,7 +47,32 @@ class AppointmentController {
         });
     })
 
-    
+    //@desc Get doc Appointments
+    //@route GET /appointments/doctor
+    //@access Public
+    getDoctorAppointments = asyncHandler(async (req, res, next) => {
+        const apiFeatures = new ApiFeatures(Appointment.find({ doctor: req.user._id })
+            .populate('patient', "fullName email phone")
+            .sort({ date: 1, time: 1 }),
+            req.query, 'Appointment')
+            .filter()
+            .paginate()
+            .cleanResponse();
+
+        // execute query
+        const appointments = await apiFeatures.query;
+
+        res.status(200).json({
+            success: true,
+            totalResults: appointments.length,
+            pagination: {
+                page: Number(req.query.page) || 1,
+                limit: Number(req.query.limit) || 20,
+            },
+            data: appointments
+        });
+    })
+
 
      // TODO :  markAsAttended to change last visit
 }
