@@ -130,6 +130,41 @@ class AnalysisController {
         }
     });
 
+    requestAnalysis = asyncHandler(async (req, res, next) => {
+        const { doctor, modelType } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(doctor) || !modelType) {
+            return next(new ApiError("modelType and doctor are required", 400));
+        }
+
+        const existingDoctor = await Doctor.findById(doctor);
+        if (!existingDoctor) {
+            return next(new ApiError("Doctor not found", 404));
+        }
+
+        if (!req.files || req.files.length === 0) {
+            return next(new ApiError("No files uploaded", 400));
+        }
+
+        const analysis = new Analysis({
+            patient: req.user._id,
+            doctor: existingDoctor._id,
+            media: req.files.map(f => f.path),
+            modelType: modelType,
+        });
+
+        await analysis.save();
+
+        // TODO : send notification to doctor
+
+        res.json({
+            success: true,
+            message: "Analysis requested successfully",
+            data: analysis
+        });
+
+    })
+
     
 
 }
