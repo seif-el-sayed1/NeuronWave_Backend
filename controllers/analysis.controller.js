@@ -193,6 +193,49 @@ class AnalysisController {
 
     })
 
+    getDoctorAnalysis = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+        const apiFeatures = new ApiFeatures(Analysis.find({ doctor: id }).populate("patient", "fullName"), req.query, "analysis")
+            .filter()
+            .sort()
+            .paginate()
+            .cleanResponse();
+        const analysis = await apiFeatures.query;
+        res.json({
+            success: true,
+            totalResults: analysis.length,
+            pagination: {
+                page: Number(req.query.page) || 1,
+                limit: Number(req.query.limit) || 20,
+            },
+            data: analysis
+        });
+
+
+    })
+
+    getPatientAnalysis = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+        const apiFeatures = new ApiFeatures(Analysis.find({ patient: id }).populate("doctor", "fullName"), req.query, "analysis")
+            .filter()
+            .sort()
+            .paginate()
+            .cleanResponse();
+
+        const analysis = await apiFeatures.query;
+        res.json({
+            success: true,
+            totalResults: analysis.length,
+            pagination: {
+                page: Number(req.query.page) || 1,
+                limit: Number(req.query.limit) || 20,
+            },
+            data: analysis
+        });
+
+
+    })
+
 }
 
 module.exports = new AnalysisController();
