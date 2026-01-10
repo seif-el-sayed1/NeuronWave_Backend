@@ -64,6 +64,73 @@ class AnalysisController {
         });
     });
 
+    approvedRejectAnalysis = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (status !== "approved" && status !== "rejected") {
+            return next(new ApiError("Invalid status", 400));
+        }
+
+        const analysis = await Analysis.findById(id);
+        if (!analysis) {
+            return next(new ApiError("Analysis not found", 404));
+        }
+
+        if (analysis.status !== "pending") {
+            return next(new ApiError(`Analysis is not pending, you can't ${status}`, 400));
+        }
+
+        if (analysis.status === status) {
+            return next(new ApiError("Analysis already " + status, 400));
+        }
+
+        if (status === "approved") {
+            try {
+                const analysisResults = await Promise.all(
+                    analysis.media.map(async (filePath) => {
+                        const originalName = path.basename(filePath);
+                        const isVideo = originalName.endsWith('.mp4');
+
+                        const result = await runPythonAnalysis(
+                            analysis.modelType,
+                            filePath,
+                            originalName,
+                            isVideo
+                        );
+                        return result;
+                    })
+                );
+
+                analysis.result = analysisResults;
+                analysis.status = "approved";
+                await analysis.save();
+
+                // TODO: Send notification to the patient
+
+                res.json({
+                    success: true,
+                    message: "Analysis approved and results stored",
+                    data: analysis
+                });
+            } catch (err) {
+                return next(new ApiError(`Failed to approve analysis: ${err.message}`, 500));
+            }
+        } else {
+            analysis.status = "rejected";
+            await analysis.save();
+
+            // TODO: Send notification to the patient
+
+            res.json({
+                success: true,
+                message: "Analysis rejected",
+                data: analysis
+            });
+        }
+    });
+
+    
 
 }
 
