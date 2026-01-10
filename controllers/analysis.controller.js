@@ -165,7 +165,33 @@ class AnalysisController {
 
     })
 
-    
+    writeDoctorConsultation = asyncHandler(async (req, res, next) => {
+        const {  id } = req.params;
+        const { consultation } = req.body
+
+        if (!mongoose.Types.ObjectId.isValid(id) || !consultation) {
+            return next(new ApiError("id and consultation are required", 400));
+        }
+
+        const analysis = await Analysis.findById(id);
+        if (!analysis) {
+            return next(new ApiError("Analysis not found", 404));
+        }
+
+        if (analysis.status !== "approved") {
+            return next(new ApiError("Analysis is not approved", 400));
+        }
+
+        analysis.consultation = consultation;
+        await analysis.save();
+
+        res.json({
+            success: true,
+            message: "Analysis consultation written successfully",
+            data: analysis
+        });
+
+    })
 
 }
 
