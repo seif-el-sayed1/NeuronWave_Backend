@@ -62,4 +62,12 @@ router
         AnalysisController.getPatientAnalysis
     );
 
+router
+    .route("/:id/reports")
+    .get(
+        protect,
+        allowedTo(USER),
+        AnalysisController.generateAnalysisReport
+    )
+
 module.exports = router;
