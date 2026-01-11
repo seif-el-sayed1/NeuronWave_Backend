@@ -313,15 +313,32 @@ class AnalysisController {
     //@desc Analysis Reports
     //@route GET /api/v1/analysis/:id/report
     //@access Private
+    #camelCaseToFileName = (text) => {
+    return text
+        .replace(/([a-z])([A-Z])/g, '$1-$2')
+        .toLowerCase();
+    };
+
+    #formatDate = (date) => {
+        const d = new Date(date);
+        return d.toISOString().split('T')[0]; // YYYY-MM-DD
+    };
+    
     generateAnalysisReport = asyncHandler(async (req, res) => {
         const { id } = req.params;
 
+        const analysis = await Analysis.findById(id);
         const pdfBuffer = await generateAnalysisPDF(id);
+
+        const modelTypeFormatted = this.#camelCaseToFileName(analysis.modelType);
+        const analysisDate = this.#formatDate(analysis.createdAt);
+
+        const fileName = `${modelTypeFormatted}-${analysisDate}.pdf`;
 
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader(
-            "Content-Disposition",
-            "inline; filename=neuron-wave-analysis-report.pdf"
+        "Content-Disposition",
+        `inline; filename=${fileName}`
         );
 
         res.send(pdfBuffer);
