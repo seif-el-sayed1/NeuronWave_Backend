@@ -32,5 +32,5 @@ const analysisSchema = mongoose.Schema({
     consultation: {
         type: String
     }
-})
+}, { timestamps: true })
 module.exports = mongoose.model("Analysis", analysisSchema)
