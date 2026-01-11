@@ -310,7 +310,22 @@ class AnalysisController {
 
     })
 
-    
+    //@desc Analysis Reports
+    //@route GET /api/v1/analysis/:id/report
+    //@access Private
+    generateAnalysisReport = asyncHandler(async (req, res) => {
+        const { id } = req.params;
+
+        const pdfBuffer = await generateAnalysisPDF(id);
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader(
+            "Content-Disposition",
+            "inline; filename=neuron-wave-analysis-report.pdf"
+        );
+
+        res.send(pdfBuffer);
+    });
 
 
 
