@@ -5,10 +5,39 @@ const ApiFeatures = require("../utils/ApiFeatures");
 const ApiError = require("../utils/ApiError");
 const Analysis = require("../models/analysis.model");
 const Doctor = require("../models/doctor.model");
-const User = require("../models/user.model");
+const User = require("../models/user.model"); 
+const Notification = require("../models/notification.model")
 const runPythonAnalysis  = require("../utils/runPythonAnalysis");
+const  { sendNotification } = require("../utils/sendNotification")
+const { generateAnalysisPDF } = require("../utils/generateReports");
 
 class AnalysisController {
+
+    #sendNotificationHelper = async (analysis, user, notificationTitle, notificationBody, caseType) => {
+        let notification = {
+            token: user.notificationToken,
+            title: notificationTitle,
+            body: notificationBody,
+            case: caseType,
+            info: analysis._id.toString(),  
+            user: user._id
+        }
+
+        if (user.notificationToken) {
+            sendNotification({
+                token: user.notificationToken,
+                title: notificationTitle,
+                body: notificationBody,
+                caseType,
+                info: analysis._id.toString()
+            })
+            await Notification.create(notification);
+        }
+    }
+
+    //@desc Process analysis by doctor
+    //@route POST /api/v1/analysis
+    //@access Private
     processAnalysisByDoctor = asyncHandler(async (req, res, next) => {
         const { modelType, patient } = req.body;
 
@@ -64,6 +93,9 @@ class AnalysisController {
         });
     });
 
+    //@desc Approve or reject analysis
+    //@route PATCH /api/v1/analysis/:id
+    //@access Private
     approvedRejectAnalysis = asyncHandler(async (req, res, next) => {
         const { id } = req.params;
         const { status } = req.body;
@@ -75,6 +107,10 @@ class AnalysisController {
         const analysis = await Analysis.findById(id);
         if (!analysis) {
             return next(new ApiError("Analysis not found", 404));
+        }
+        const patient = await User.findById(analysis.patient)
+        if (!patient) {
+            return new ApiError("Patient not found", 404)
         }
 
         if (analysis.status !== "pending") {
@@ -106,7 +142,13 @@ class AnalysisController {
                 analysis.status = "approved";
                 await analysis.save();
 
-                // TODO: Send notification to the patient
+                await this.#sendNotificationHelper(
+                    analysis,
+                    patient,
+                    "Analysis Status Update",
+                    "Your analysis has been Approved",
+                    "analysisApproved"
+                )
 
                 res.json({
                     success: true,
@@ -120,7 +162,13 @@ class AnalysisController {
             analysis.status = "rejected";
             await analysis.save();
 
-            // TODO: Send notification to the patient
+            await this.#sendNotificationHelper(
+                analysis,
+                patient,
+                "Analysis Status Update",
+                "Your analysis has been rejected",
+                "analysisRejected"
+            )
 
             res.json({
                 success: true,
@@ -130,6 +178,9 @@ class AnalysisController {
         }
     });
 
+    //@desc Request analysis
+    //@route POST /api/v1/analysis/request
+    //@access Private
     requestAnalysis = asyncHandler(async (req, res, next) => {
         const { doctor, modelType } = req.body;
 
@@ -155,7 +206,13 @@ class AnalysisController {
 
         await analysis.save();
 
-        // TODO : send notification to doctor
+        await this.#sendNotificationHelper(
+            analysis,
+            existingDoctor,
+            "New Analysis Request",
+            "You have a new analysis request",
+            "analysisRequested"
+        )
 
         res.json({
             success: true,
@@ -165,6 +222,9 @@ class AnalysisController {
 
     })
 
+    //@desc Write doctor consultation
+    //@route POST /api/v1/analysis/:id/consultation
+    //@access Private
     writeDoctorConsultation = asyncHandler(async (req, res, next) => {
         const {  id } = req.params;
         const { consultation } = req.body
@@ -185,6 +245,14 @@ class AnalysisController {
         analysis.consultation = consultation;
         await analysis.save();
 
+        await this.#sendNotificationHelper(
+            analysis,
+            analysis.patient,
+            "You have a new analysis report",
+            `Dr ${req.user.fullName.split(" ")[0]} Write a consultation`,
+            "analysisConsultation"
+        )
+
         res.json({
             success: true,
             message: "Analysis consultation written successfully",
@@ -193,6 +261,9 @@ class AnalysisController {
 
     })
 
+    //@desc Get doctor analysis
+    //@route GET /api/v1/analysis/:id/doctor
+    //@access Private
     getDoctorAnalysis = asyncHandler(async (req, res, next) => {
         const { id } = req.params;
         const apiFeatures = new ApiFeatures(Analysis.find({ doctor: id }).populate("patient", "fullName"), req.query, "analysis")
@@ -214,6 +285,9 @@ class AnalysisController {
 
     })
 
+    //@desc Get patient analysis
+    //@route GET /api/v1/analysis/:id/patient
+    //@access Private
     getPatientAnalysis = asyncHandler(async (req, res, next) => {
         const { id } = req.params;
         const apiFeatures = new ApiFeatures(Analysis.find({ patient: id }).populate("doctor", "fullName"), req.query, "analysis")
@@ -235,6 +309,10 @@ class AnalysisController {
 
 
     })
+
+    
+
+
 
 }
 
