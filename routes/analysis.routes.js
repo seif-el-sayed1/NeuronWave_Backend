@@ -21,6 +21,30 @@ router
     );
 
 router
+    .route("/doctor")
+    .get(
+        protect,
+        allowedTo(DOCTOR),
+        AnalysisController.getDoctorAnalysis
+    );
+
+router
+    .route("/patient")
+    .get(
+        protect,
+        allowedTo(USER),
+        AnalysisController.getPatientAnalysis
+    );
+
+router
+    .route("/reports")
+    .get(
+        protect,
+        allowedTo(USER),
+        AnalysisController.getMyReports
+    );
+
+router
     .route("/request")
     .post(
         protect,
@@ -44,22 +68,6 @@ router
         allowedTo(DOCTOR),
         upload.uploadMedia,
         AnalysisController.approvedRejectAnalysis
-    );
-
-router
-    .route("/:id/doctor")
-    .get(
-        protect,
-        allowedTo(DOCTOR),
-        AnalysisController.getDoctorAnalysis
-    );
-
-router
-    .route("/:id/patient")
-    .get(
-        protect,
-        allowedTo(USER),
-        AnalysisController.getPatientAnalysis
     );
 
 router
