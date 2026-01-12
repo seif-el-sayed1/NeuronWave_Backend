@@ -36,26 +36,33 @@ class AppointmentController {
     createAppointment = asyncHandler(async (req, res, next) => {
         const appointment = await Appointment.create(req.body);
 
+        const populatedAppointment = await Appointment.findById(appointment._id)
+            .populate({
+                path: "doctor",
+                select: "fullName email phone medicalSpecialty"
+            });
+
         if (req.user.role === USER) {
             const doctor = await Doctor.findById(req.body.doctor).select("notificationToken _id");
-            if  (!doctor) {
+            if (!doctor) {
                 return next(new ApiError("Doctor not found", 404));
             }
+
             await this.#sendNotificationHelper(
                 appointment,
                 doctor,
                 "You have a new appointment request",
                 `Patient ${req.user.fullName.split(" ")[0]} booked a new appointment. Please accept or reject the request.`,
-                "Appointment Request",
-            )
+                "Appointment Request"
+            );
         }
 
         res.status(201).json({
             success: true,
             message: "Appointment created successfully",
-            data: appointment
-        })
-    })
+            data: populatedAppointment
+        });
+    });
 
     //@desc Get My Appointments
     //@route GET /appointments
