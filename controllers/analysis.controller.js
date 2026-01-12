@@ -265,8 +265,7 @@ class AnalysisController {
     //@route GET /api/v1/analysis/:id/doctor
     //@access Private
     getDoctorAnalysis = asyncHandler(async (req, res, next) => {
-        const { id } = req.params;
-        const apiFeatures = new ApiFeatures(Analysis.find({ doctor: id }).populate("patient", "fullName"), req.query, "analysis")
+        const apiFeatures = new ApiFeatures(Analysis.find({ doctor: req.user._id }).populate("patient", "fullName"), req.query, "analysis")
             .filter()
             .sort()
             .paginate()
@@ -289,13 +288,11 @@ class AnalysisController {
     //@route GET /api/v1/analysis/:id/patient
     //@access Private
     getPatientAnalysis = asyncHandler(async (req, res, next) => {
-        const { id } = req.params;
-        const apiFeatures = new ApiFeatures(Analysis.find({ patient: id }).populate("doctor", "fullName"), req.query, "analysis")
+        const apiFeatures = new ApiFeatures(Analysis.find({ patient: req.user._id }).populate("doctor", "fullName"), req.query, "Analysis")
             .filter()
             .sort()
             .paginate()
             .cleanResponse();
-
         const analysis = await apiFeatures.query;
         res.json({
             success: true,
@@ -306,9 +303,33 @@ class AnalysisController {
             },
             data: analysis
         });
-
-
     })
+
+    //@desc get patients reports
+    //@route /analysis/reports
+    //@access Private
+    getMyReports = asyncHandler(async(req, res, next) => {
+        const apiFeatures = new ApiFeatures(Analysis.find({ 
+            patient: req.user._id,
+            status: "approved",
+            consultation: { $exists: true, $ne: null }
+        }).populate("doctor", "fullName"), req.query, "Analysis")
+            .filter()
+            .sort()
+            .paginate()
+            .cleanResponse();
+        const reports = await apiFeatures.query;
+        res.json({
+            success: true,
+            totalResults: reports.length,
+            pagination: {
+                page: Number(req.query.page) || 1,
+                limit: Number(req.query.limit) || 20,
+            },
+            data: reports
+        });
+    })
+
 
     //@desc Analysis Reports
     //@route GET /api/v1/analysis/:id/report
