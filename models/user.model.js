@@ -79,9 +79,6 @@ const userSchema = mongoose.Schema(
       enum: ["byApp", "byDoctor"],
       default: "byApp"                     
     },
-    dateOfBirth: {
-      type: Date
-    },
     lastVisit: {
       type: Date
     },
