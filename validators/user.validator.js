@@ -50,9 +50,7 @@ class UserValidator {
         "any.required": "Emergency Contact is required",
       }),
 
-      dateOfBirth: Joi.date()
-        .required()
-        .messages({ "any.required": "Date of Birth is required" }),
+      age: Joi.number().min(0).required(),
 
       loginType: Joi.string().optional(),
 
@@ -84,13 +82,13 @@ class UserValidator {
   validateUpdateUser = asyncHandler(async (req, res, next) => {
     const schema = Joi.object({
       fullName: Joi.string().optional().min(2).max(32),
-      dateOfBirth: Joi.date().optional(),
       phone: Joi.string().custom(phoneNumberValidator).optional().messages({
         "string.pattern.base":
           "Phone number must start with '0' and contain exactly 11 digits",
         "any.required": "Phone number is required",
       }),
       email: Joi.string().email().optional(),
+      age: Joi.number().min(0).required(),
       gender: Joi.string().valid("male", "female", "ذكر", "انثي").optional(),
       emergencyContact: Joi.string().custom(phoneNumberValidator).optional().messages({
         "any.required": "Emergency contact number is required",
