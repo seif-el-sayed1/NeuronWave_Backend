@@ -122,19 +122,31 @@ class AppointmentController {
     updateAppointment = asyncHandler(async (req, res, next) => {
         const { id } = req.params;
 
-        const appointment = await Appointment.findById(id);
+        const appointment = await Appointment.findById(id)
+            .populate("patient", "fullName notificationToken");
+
         if (!appointment) {
-            return next(new ApiError('Appointment not found', 404));
+            return next(new ApiError("Appointment not found", 404));
         }
 
         if (appointment.status !== "accepted") {
-            return next(new ApiError('Appointment cannot be updated unless it is accepted', 400));
+            return next(
+                new ApiError(
+                    "Appointment cannot be updated unless it is accepted",
+                    400
+                )
+            );
         }
-        const updatedAppointment = await Appointment.findByIdAndUpdate(id, req.body, { new: true });
 
-        const patient = await User.findById(appointment.patient).select("notificationToken _id");
+        const updatedAppointment = await Appointment.findByIdAndUpdate(
+            id,
+            req.body,
+            { new: true }
+        ).populate("patient", "fullName notificationToken");
+
+        const patient = appointment.patient;
         if (!patient) {
-            return next(new ApiError('Patient not found', 404));
+            return next(new ApiError("Patient not found", 404));
         }
 
         await this.#sendNotificationHelper(
@@ -179,25 +191,48 @@ class AppointmentController {
         const { status, rejectionReason } = req.body;
 
         if (!APPOINTMENT_STATUS.includes(status)) {
-            return next(new ApiError(`Invalid status. Allowed values: ${APPOINTMENT_STATUS.join(', ')}`, 400));
+            return next(
+                new ApiError(
+                    `Invalid status. Allowed values: ${APPOINTMENT_STATUS.join(", ")}`,
+                    400
+                )
+            );
         }
 
-        const appointment = await Appointment.findById(id);
+        const appointment = await Appointment.findById(id)
+            .populate("patient", "_id fullName notificationToken")
+            .populate("doctor", "_id fullName notificationToken");
+
         if (!appointment) {
-            return next(new ApiError('Appointment not found', 404));
+            return next(new ApiError("Appointment not found", 404));
         }
 
         if (appointment.status !== "pending") {
-            return next(new ApiError('Only pending appointments can be changed', 400));
+            return next(
+                new ApiError("Only pending appointments can be changed", 400)
+            );
         }
-        
-        if (req.user.role === USER && status !== 'canceled') {
-            return next(new ApiError('Patients can only change status to canceled', 403));
+
+        if (req.user.role === USER && status !== "canceled") {
+            return next(
+                new ApiError(
+                    "Patients can only change status to canceled",
+                    403
+                )
+            );
         }
 
         const userId = req.user._id.toString();
-        if (userId !== appointment.patient.toString() && userId !== appointment.doctor.toString()) {
-            return next(new ApiError('You are not allowed to change this appointment status', 403));
+        if (
+            userId !== appointment.patient._id.toString() &&
+            userId !== appointment.doctor._id.toString()
+        ) {
+            return next(
+                new ApiError(
+                    "You are not allowed to change this appointment status",
+                    403
+                )
+            );
         }
 
         if (appointment.status === status) {
@@ -208,7 +243,12 @@ class AppointmentController {
         }
 
         if (status !== "rejected" && rejectionReason) {
-            return next(new ApiError("Rejection reason is only allowed when status is rejected", 400));
+            return next(
+                new ApiError(
+                    "Rejection reason is only allowed when status is rejected",
+                    400
+                )
+            );
         }
 
         if (status === "rejected" && (!rejectionReason || rejectionReason.trim() === "")) {
@@ -220,39 +260,37 @@ class AppointmentController {
         if (status === "rejected") {
             appointment.rejectionReason = rejectionReason;
         } else {
-            appointment.rejectionReason = undefined; 
+            appointment.rejectionReason = undefined;
         }
 
         if (status !== "accepted") {
             if (req.user.role === DOCTOR) {
-                const patient = await User.findById(appointment.patient).select("_id notificationToken");
-                if (!patient) {
-                    return next(new ApiError('Patient not found', 404));
-                }
-    
+
+                const patient = appointment.patient;
+
                 await this.#sendNotificationHelper(
                     appointment,
                     patient,
                     `Your appointment has been ${status}!`,
-                    `Dr.${req.user.fullName.split(" ")[0]} ${status} your appointment ${  status === "rejected" ? `- Reason: ${rejectionReason}` : ""}.`,
-                    "Appointment Status Updated",
-                )
+                    `Dr.${req.user.fullName.split(" ")[0]} ${status} your appointment${
+                        status === "rejected" ? ` - Reason: ${rejectionReason}` : ""
+                    }.`,
+                    "Appointment Status Updated"
+                );
+
             } else {
-                const doctor = await Doctor.findById(appointment.doctor).select("_id notificationToken");
-                if (!doctor) {
-                    return next(new ApiError('Doctor not found', 404));
-                }
-    
+
+                const doctor = appointment.doctor;
+
                 await this.#sendNotificationHelper(
                     appointment,
                     doctor,
-                    `Appointment has been Canceled!`,
-                    `Patient ${req.user.fullName.split(" ")[0]} canceled the appointment `,
-                    "Appointment Status Updated",
-                )
+                    "Appointment has been Canceled!",
+                    `Patient ${req.user.fullName.split(" ")[0]} canceled the appointment`,
+                    "Appointment Status Updated"
+                );
             }
-        }            
-
+        }
 
         await appointment.save();
 
@@ -262,6 +300,7 @@ class AppointmentController {
             data: appointment
         });
     });
+
 
      // TODO :  markAsAttended to change last visit
 }
