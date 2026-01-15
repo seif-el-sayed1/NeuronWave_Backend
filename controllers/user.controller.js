@@ -8,7 +8,7 @@ class UserController {
     //@access Private
     getMyProfile = asyncHandler(async (req, res, next) => {
         const user = await User.findById(req.user._id)
-                .select("fullName phone email  createdAt role dateOfBirth emergencyContact medicalId");
+                .select("fullName phone email  createdAt role emergencyContact medicalId");
 
         if (!user) return next(new ApiError("User not found", 404));
 
@@ -28,7 +28,7 @@ class UserController {
         const user = await User.findByIdAndUpdate(req.user._id, req.body, {
             new: true,
             runValidators: true,
-        }).select("fullName phone email  createdAt role dateOfBirth emergencyContact medicalId");
+        }).select("fullName phone email  createdAt role emergencyContact medicalId");
         if (!user) return next(new ApiError("User not found", 404));
 
         res.status(200).json({
@@ -56,7 +56,7 @@ class UserController {
                     notificationToken: 1
                 }
             },
-        ).select("fullName phone email  createdAt role dateOfBirth emergencyContact medicalId");
+        ).select("fullName phone email  createdAt role emergencyContact medicalId");
         res.status(200).json({
             status: 'success',
             message: "Your account has been Deleted successfully",
