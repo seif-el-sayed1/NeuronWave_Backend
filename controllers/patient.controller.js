@@ -26,7 +26,7 @@ class PatientsController {
                 isActive: true,
             })
             .select(
-                "fullName phone email lastVisit createdAt notes address dateOfBirth age gender emergencyContact medicalHistory diagnosis registerType doctor"
+                "fullName phone email lastVisit createdAt notes address age gender emergencyContact medicalHistory diagnosis registerType doctor"
             )
             .sort({ lastVisit: -1, createdAt: -1 }),
             req.query,
@@ -60,7 +60,7 @@ class PatientsController {
         }
 
         const patient = await User.findById(req.params.id).select(
-            "fullName phone email createdAt role lastVisit notes address dateOfBirth age gender emergencyContact medicalHistory diagnosis registerType address"
+            "fullName phone email createdAt role lastVisit notes address age gender emergencyContact medicalHistory diagnosis registerType address"
         );
         if (!patient) {
             return next(new ApiError("Patient not found", 404));
@@ -81,7 +81,7 @@ class PatientsController {
     //@access Public
     getOnePatient = asyncHandler(async (req, res, next) => {
         const patient = await User.findById(req.params.id).select(
-            "fullName phone email createdAt role notes address lastVisit dateOfBirth age gender emergencyContact medicalHistory diagnosis registerType address"
+            "fullName phone email createdAt role notes address lastVisit age gender emergencyContact medicalHistory diagnosis registerType address"
         );
         if (!patient) {
             return next(new ApiError("Patient not found", 404));
