@@ -19,7 +19,7 @@ class UserController {
       email: user.email,
       phone: user.phone,
       age: user.age,
-      gender: user.genderEn,
+      gender: user.gender,
       emergencyContact: user.emergencyContact,
       createdAt: user.createdAt,
       loginType: user.loginType,
@@ -33,10 +33,10 @@ class UserController {
       const lang = req.headers.lang || "en";
 
       if (loginType && loginType !== user.loginType)
-          return next(new ApiError(translate("Incorrect Email/Phone or password", lang), 403));
+          return next(new ApiError(translate("Incorrect Email or password", lang), 403));
       else if (!loginType) {
           if (!(await user.comparePassword(password)))
-              return next(new ApiError(translate("Incorrect Email/Phone or password", lang), 403));
+              return next(new ApiError(translate("Incorrect Email or password", lang), 403));
       }
 
       // Response Msg
@@ -50,7 +50,7 @@ class UserController {
           const millisecondsIn15Days = 15 * 24 * 60 * 60 * 1000;
 
           if (timeDifference >= millisecondsIn15Days) {
-              return next(new ApiError(translate("Incorrect Email/Phone or password", lang), 404));
+              return next(new ApiError(translate("Incorrect Email or password", lang), 404));
           } else {
               user.deactivatedAt = undefined;
               user.isActive = true;
@@ -163,7 +163,7 @@ class UserController {
                 {
                     fullName: req.body.fullName,
                     genderAr: req.body.genderAr,
-                    genderEn: req.body.genderEn,
+                    gender: req.body.gender,
                     notVerifiedTime: Date.now(),
                     email: req.body.email,
                     phone: req.body.phone,
@@ -287,7 +287,7 @@ class UserController {
       return next(new ApiError(translate("Incorrect password", lang), 401));
 
     const user = await User.findById(req.user._id);
-    if (!user) return next(new ApiError("User not found", 404));
+    if (!user) return next(new ApiError("User not found!", 404));
 
     user.password = req.body.newPassword;
     user.passwordChangedAt = Date.now();
