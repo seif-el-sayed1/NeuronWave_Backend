@@ -18,6 +18,35 @@ class PatientsController {
         })
     })
 
+    //@desc get Doctor Patients
+    //@route GET /patients
+    //@access Public
+    getAllPatients = asyncHandler(async (req, res, next) => {
+        const baseQuery = User.find({ isActive: true })
+            .select(
+                "fullName phone email lastVisit createdAt notes address age gender emergencyContact medicalHistory diagnosis registerType doctor"
+            )
+            .sort({ lastVisit: -1, createdAt: -1 }); 
+
+        const apiFeatures = new ApiFeatures(baseQuery, req.query, 'User')
+            .search()
+            .filter()
+            .cleanResponse()
+            .paginate();
+
+        const patients = await apiFeatures.query;
+
+        res.status(200).json({
+            success: true,
+            totalResults: patients.length,
+            pagination: {
+                page: Number(req.query.page) || 1,
+                limit: Number(req.query.limit) || 20,
+            },
+            data: patients
+        });
+    });
+
     //@desc Add Patient Note
     //@route PATCH /patients/:id/note
     //@access Public
