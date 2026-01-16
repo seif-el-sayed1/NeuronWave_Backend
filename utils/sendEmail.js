@@ -1,5 +1,6 @@
 const sgMail = require('@sendgrid/mail');
 const ApiError = require('./ApiError');
+const { translate } = require("../utils/translation");
 
 sgMail.setApiKey(process.env.EMAIL_PASS); 
 
@@ -19,7 +20,7 @@ const sendEmail = async (options) => {
         return info;
     } catch (err) {
         console.error('Email send error:', err);
-        throw new ApiError('Unable to send an email, please try again later.', 422);
+        throw new ApiError(translate('Unable to send an email, please try again later.'), 422);
     }
 };
 
