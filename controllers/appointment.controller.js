@@ -8,6 +8,23 @@ const Notification = require("../models/notification.model");
 const { USER, APPOINTMENT_STATUS, DOCTOR } = require("../utils/constants")
 const { sendNotification } = require("../utils/sendNotification");
 const { translate } = require("../utils/translation");
+
+
+
+
+function formatTimeAr(time) {
+    const [hourMin, period] = time.split(" "); // ["06:00", "PM"]
+    let [hour, minute] = hourMin.split(":").map(Number);
+
+    if (period === "PM" && hour < 12) hour += 12;
+    if (period === "AM" && hour === 12) hour = 0;
+
+    const formattedHour = hour % 12 === 0 ? 12 : hour % 12;
+    const arabicPeriod = period === "PM" ? "مساءً" : "صباحًا";
+
+    return `${formattedHour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")} ${arabicPeriod}`;
+}
+
 class AppointmentController {
     #sendNotificationHelper = async (appointment, user, notificationTitle, notificationBody, caseType) => {
         let notification = {
@@ -41,11 +58,11 @@ class AppointmentController {
         const populatedAppointment = await Appointment.findById(appointment._id)
             .populate({
                 path: "doctor",
-                select: "fullName email phone medicalSpecialty"
+                select: "fullName email phone medicalSpecialty lang notificationToken _id",
             });
 
         if (req.user.role === USER) {
-            const doctor = await Doctor.findById(req.body.doctor).select("notificationToken _id");
+            const doctor = await Doctor.findById(req.body.doctor).select("notificationToken _id lang");
             if (!doctor) {
                 return next(new ApiError(translate("Doctor not found", lang), 404));
             }
@@ -53,8 +70,8 @@ class AppointmentController {
             await this.#sendNotificationHelper(
                 appointment,
                 doctor,
-                "You have a new appointment request",
-                `Patient ${req.user.fullName.split(" ")[0]} booked a new appointment. Please accept or reject the request.`,
+                translate("You have a new appointment request", doctor.lang),
+                `${req.user.fullName.split(" ")[0]} ${translate("booked a new appointment. Please accept or reject the request.", doctor.lang)}`,
                 "Appointment Request"
             );
         }
@@ -125,7 +142,7 @@ class AppointmentController {
         const { id } = req.params;
         const lang = req.headers.lang || "en";
         const appointment = await Appointment.findById(id)
-            .populate("patient", "fullName notificationToken");
+            .populate("patient", "fullName notificationToken lang _id");
 
         if (!appointment) {
             return next(new ApiError(translate("Appointment not found", lang), 404));
@@ -144,20 +161,31 @@ class AppointmentController {
             id,
             req.body,
             { new: true }
-        ).populate("patient", "fullName notificationToken");
+        ).populate("patient", "fullName notificationToken lang");
 
         const patient = appointment.patient;
         if (!patient) {
             return next(new ApiError(translate("Patient not found", lang), 404));
         }
 
+        let doctorFirstName = req.user.fullName.split(" ")[0];
+        let body;
+
+        if (patient.lang === "ar") {
+            const timeAr = formatTimeAr(req.body.time);
+            body = `Dr. ${doctorFirstName} قبل موعدك المحدد يوم ${req.body.date} الساعة ${timeAr}.`;
+        } else {
+            body = `Dr. ${doctorFirstName} accepted your appointment scheduled on ${req.body.date} at ${req.body.time}.`;
+        }
+
         await this.#sendNotificationHelper(
             appointment,
             patient,
-            "Your appointment has been accepted!",
-            `Dr.${req.user.fullName.split(" ")[0]} accepted your appointment scheduled on ${req.body.date} at ${req.body.time}.`,
+            patient.lang === "ar" ? "تم قبول الموعد" : "Your appointment has been accepted!",
+            body,
             "Appointment Accepted"
         );
+
 
         res.status(200).json({
             success: true,
@@ -203,8 +231,8 @@ class AppointmentController {
         }
 
         const appointment = await Appointment.findById(id)
-            .populate("patient", "_id fullName notificationToken")
-            .populate("doctor", "_id fullName notificationToken");
+            .populate("patient", "_id fullName notificationToken lang")
+            .populate("doctor", "_id fullName notificationToken lang");
 
         if (!appointment) {
             return next(new ApiError(translate("Appointment not found", lang), 404));
@@ -274,9 +302,9 @@ class AppointmentController {
                 await this.#sendNotificationHelper(
                     appointment,
                     patient,
-                    `Your appointment has been ${status}!`,
-                    `Dr.${req.user.fullName.split(" ")[0]} ${status} your appointment${
-                        status === "rejected" ? ` - Reason: ${rejectionReason}` : ""
+                    translate(`Your appointment has been ${status}!`, patient.lang),
+                    `Dr.${req.user.fullName.split(" ")[0]} ${translate(`${status} your appointment`, patient.lang)} ${
+                        status === "rejected" ? ` - ${translate("Reason:", patient.lang)} ${rejectionReason}` : ""
                     }.`,
                     "Appointment Status Updated"
                 );
@@ -288,8 +316,8 @@ class AppointmentController {
                 await this.#sendNotificationHelper(
                     appointment,
                     doctor,
-                    "Appointment has been Canceled!",
-                    `Patient ${req.user.fullName.split(" ")[0]} canceled the appointment`,
+                    translate("Appointment has been Canceled!", doctor.lang),
+                    `${req.user.fullName.split(" ")[0]} ${translate("canceled the appointment", doctor.lang)}.`,
                     "Appointment Status Updated"
                 );
             }
@@ -305,7 +333,6 @@ class AppointmentController {
     });
 
 
-     // TODO :  markAsAttended to change last visit
 }
 
 module.exports = new AppointmentController();
