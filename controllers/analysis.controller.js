@@ -10,6 +10,7 @@ const Notification = require("../models/notification.model")
 const runPythonAnalysis  = require("../utils/runPythonAnalysis");
 const  { sendNotification } = require("../utils/sendNotification")
 const { generateAnalysisPDF } = require("../utils/generateReports");
+const { translate } = require("../utils/translation");
 
 class AnalysisController {
 
@@ -99,26 +100,27 @@ class AnalysisController {
     approvedRejectAnalysis = asyncHandler(async (req, res, next) => {
         const { id } = req.params;
         const { status } = req.body;
+        const lang = req.headers.lang
 
         if (status !== "approved" && status !== "rejected") {
-            return next(new ApiError("Invalid status", 400));
+            return next(new ApiError(translate("Invalid status", lang), 400));
         }
 
         const analysis = await Analysis.findById(id);
         if (!analysis) {
-            return next(new ApiError("Analysis not found", 404));
+            return next(new ApiError(translate("Analysis not found", lang), 404));
         }
         const patient = await User.findById(analysis.patient)
         if (!patient) {
-            return new ApiError("Patient not found", 404)
+            return new ApiError(translate("Patient not found", lang), 404)
         }
 
         if (analysis.status !== "pending") {
-            return next(new ApiError(`Analysis is not pending, you can't ${status}`, 400));
+            return next(new ApiError(`${translate("Analysis is not pending, you can't ", lang)} ${status}`, 400));
         }
 
         if (analysis.status === status) {
-            return next(new ApiError("Analysis already " + status, 400));
+            return next(new ApiError(translate("Analysis already ", lang) + status, 400));
         }
 
         if (status === "approved") {
@@ -183,18 +185,19 @@ class AnalysisController {
     //@access Private
     requestAnalysis = asyncHandler(async (req, res, next) => {
         const { doctor, modelType } = req.body;
+        const lang = req.headers.lang
 
         if (!mongoose.Types.ObjectId.isValid(doctor) || !modelType) {
-            return next(new ApiError("modelType and doctor are required", 400));
+            return next(new ApiError(translate("modelType and doctor are required", lang), 400));
         }
 
         const existingDoctor = await Doctor.findById(doctor);
         if (!existingDoctor) {
-            return next(new ApiError("Doctor not found", 404));
+            return next(new ApiError(translate("Doctor not found", lang), 404));
         }
 
         if (!req.files || req.files.length === 0) {
-            return next(new ApiError("No files uploaded", 400));
+            return next(new ApiError(translate("No files uploaded", lang), 400));
         }
 
         const analysis = new Analysis({
@@ -228,18 +231,19 @@ class AnalysisController {
     writeDoctorConsultation = asyncHandler(async (req, res, next) => {
         const {  id } = req.params;
         const { consultation } = req.body
+        const lang = req.headers.lang
 
         if (!mongoose.Types.ObjectId.isValid(id) || !consultation) {
-            return next(new ApiError("id and consultation are required", 400));
+            return next(new ApiError(translate("id and consultation are required", lang), 400));
         }
 
         const analysis = await Analysis.findById(id);
         if (!analysis) {
-            return next(new ApiError("Analysis not found", 404));
+            return next(new ApiError(translate("Analysis not found", lang), 404));
         }
 
         if (analysis.status !== "approved") {
-            return next(new ApiError("Analysis is not approved", 400));
+            return next(new ApiError(translate("Analysis is not approved", lang), 400));
         }
 
         analysis.consultation = consultation;
