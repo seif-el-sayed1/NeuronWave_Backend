@@ -32,10 +32,10 @@ class DoctorController {
       const lang = req.headers.lang || "en";
 
       if (loginType && loginType !== doctor.loginType)
-          return next(new ApiError(translate("Incorrect Email/Phone or password", lang), 403));
+          return next(new ApiError(translate("Incorrect Email or password", lang), 403));
       else if (!loginType) {
           if (!(await doctor.comparePassword(password)))
-              return next(new ApiError(translate("Incorrect Email/Phone or password", lang), 403));
+              return next(new ApiError(translate("Incorrect Email or password", lang), 403));
       }
 
       // Response Msg
@@ -49,7 +49,7 @@ class DoctorController {
           const millisecondsIn15Days = 15 * 24 * 60 * 60 * 1000;
 
           if (timeDifference >= millisecondsIn15Days) {
-              return next(new ApiError(translate("Incorrect Email/Phone or password", lang), 404));
+              return next(new ApiError(translate("Incorrect Email or password", lang), 404));
           } else {
               doctor.deactivatedAt = undefined;
               doctor.isActive = true;
@@ -280,7 +280,7 @@ class DoctorController {
       return next(new ApiError(translate("Incorrect password", lang), 401));
 
     const doctor = await Doctor.findById(req.user._id);
-    if (!doctor) return next(new ApiError("User not found", 404));
+    if (!doctor) return next(new ApiError("Doctor not found!", 404));
 
     doctor.password = req.body.newPassword;
     doctor.passwordChangedAt = Date.now();
