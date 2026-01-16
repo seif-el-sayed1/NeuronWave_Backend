@@ -2,7 +2,7 @@ const asyncHandler = require("express-async-handler");
 const ApiFeatures = require("../utils/ApiFeatures");
 const ApiError = require("../utils/ApiError");
 const Doctor = require("../models/doctor.model");
-
+const { translate } = require("../utils/translation");
 class DoctorController {
     
     //@desc Get all Doctors
@@ -36,8 +36,9 @@ class DoctorController {
     getMyProfile = asyncHandler(async (req, res, next) => {
         const user = await Doctor.findById(req.user._id)
                 .select("fullName phone email profilePicture createdAt role medicalSpecialty")
+        const lang = req.headers.lang || "en";
 
-        if (!user) return next(new ApiError("Doctor not found", 404));
+        if (!user) return next(new ApiError(translate("Doctor not found", lang), 404));
 
         res.status(200).json({
             success: true,
@@ -50,14 +51,14 @@ class DoctorController {
     //@access Private
     updateMe = asyncHandler(async (req, res, next) => {
         const oldUser = await Doctor.findById(req.user._id);
-        if (!oldUser) return next(new ApiError("Doctor not found", 404));
+        if (!oldUser) return next(new ApiError(translate("Doctor not found", lang), 404));
         
         const user = await Doctor.findByIdAndUpdate(req.user._id, req.body, {
             new: true,
             runValidators: true,
         }).select("fullName phone email profilePicture createdAt role medicalSpecialty medicalLicenseNumber")
 
-        if (!user) return next(new ApiError("Doctor not found", 404));
+        if (!user) return next(new ApiError(translate("Doctor not found", lang), 404));
 
         res.status(200).json({
             success: true,
@@ -71,8 +72,8 @@ class DoctorController {
     deactivateMe = asyncHandler(async (req, res, next) => {
         // Delete Doctor After 15 Days
         const oldUser = await Doctor.findById(req.user._id);
-        if (!oldUser) return next(new ApiError("Doctor not found", 404));
-        if (!oldUser.isActive) return next(new ApiError("Doctor is already deactivated", 400));
+        if (!oldUser) return next(new ApiError(translate("Doctor not found", lang), 404));
+        if (!oldUser.isActive) return next(new ApiError(translate("Doctor is already deactivated"), 400));
 
         const user = await Doctor.findByIdAndUpdate(
             req.user._id,
