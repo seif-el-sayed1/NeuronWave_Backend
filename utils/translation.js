@@ -61,6 +61,8 @@ const ar = {
   "Invalid Email Address" : "عنوان البريد الالكتروني غير صالح",
   "Invalid phone number format" : "تنسيق رقم الهاتف غير صالح",
   "Current password is required" : "كلمة المرور الحالية مطلوبة",
+  "Language is required" : "اللغة مطلوبة",
+  "Invalid Language" : "لغة غير صالحة",
   // appointment
   "Appointment not found" : "الموعد غير موجود",
   "Patient not found" : "المريض غير موجود",
@@ -128,6 +130,29 @@ const ar = {
   "gender": "النوع",
   // notifications
   "Notification not found" : "الاشعار غير موجود",
+  // appointment notifications
+  "You have a new appointment request" : "لديك طلب موعد جديد",
+  "booked a new appointment. Please accept or reject the request." : "تم حجز موعد جديد. يرجى قبول او رفض الطلب.",
+  "Your appointment has been accepted!" : "تم قبول موعدك!",
+  "Your appointment has been rejected!" : "تم رفض موعدك!",
+  "Your appointment has been canceled!" : "تم إلغاء موعدك!",
+  "Appointment has been Canceled!" : "تم إلغاء الموعد!",
+  "canceled the appointment" : "الغي الموعد",
+  "rejected your appointment" : "رفض موعدك",
+  "canceled your appointment" : "الغى موعدك",
+  "Reason:" : "السبب:",
+  "accepted your appointment scheduled on" : "قبلت موعدك المجدول في",
+  "at" : "الساعه",
+  // analysis notifications
+  "Analysis Status Update" : "تحديث حالة التحليل",
+  "has approved your analysis" : "قبل طلب تحليلك",
+  "has rejected your analysis" : "رفض طلب تحليلك",
+  "Your analysis has been Approved" : "تمت الموافقة على التحليل",
+  "Your analysis has been rejected" : "تم رفض التحليل",
+  "New Analysis Request" : "طلب تحليل جديد",
+  "You have a new analysis request" : "لديك طلب تحليل جديد",
+  "You have a new analysis report" : "لديك تقرير تحليل جديد",
+  "wrote you a consultation." : "كتب لك استشارة.",
 };
 
 function translateNumbers(input, lang = "en") {
