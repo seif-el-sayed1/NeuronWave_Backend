@@ -91,6 +91,9 @@ class UserController {
 
       // Save notification token
       if (req.body.notificationToken) user.notificationToken = req.body.notificationToken;
+
+      user.lastVisit = new Date();
+
       await user.save();
 
       // Remove password from the response
@@ -104,11 +107,11 @@ class UserController {
           message,
           data: {
               ...this.#getUsersData(user, lang),
-              // unseenNotifications,
               ...token
           }
       });
   });
+
 
 
   // @desc    Log In
