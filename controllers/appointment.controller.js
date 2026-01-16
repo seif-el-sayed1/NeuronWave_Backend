@@ -7,6 +7,7 @@ const Doctor = require("../models/doctor.model");
 const Notification = require("../models/notification.model");
 const { USER, APPOINTMENT_STATUS, DOCTOR } = require("../utils/constants")
 const { sendNotification } = require("../utils/sendNotification");
+const { translate } = require("../utils/translation");
 class AppointmentController {
     #sendNotificationHelper = async (appointment, user, notificationTitle, notificationBody, caseType) => {
         let notification = {
@@ -35,6 +36,7 @@ class AppointmentController {
     //@access Public
     createAppointment = asyncHandler(async (req, res, next) => {
         const appointment = await Appointment.create(req.body);
+        const lang = req.headers.lang || "en";
 
         const populatedAppointment = await Appointment.findById(appointment._id)
             .populate({
@@ -45,7 +47,7 @@ class AppointmentController {
         if (req.user.role === USER) {
             const doctor = await Doctor.findById(req.body.doctor).select("notificationToken _id");
             if (!doctor) {
-                return next(new ApiError("Doctor not found", 404));
+                return next(new ApiError(translate("Doctor not found", lang), 404));
             }
 
             await this.#sendNotificationHelper(
@@ -121,18 +123,18 @@ class AppointmentController {
     // @access Public
     updateAppointment = asyncHandler(async (req, res, next) => {
         const { id } = req.params;
-
+        const lang = req.headers.lang || "en";
         const appointment = await Appointment.findById(id)
             .populate("patient", "fullName notificationToken");
 
         if (!appointment) {
-            return next(new ApiError("Appointment not found", 404));
+            return next(new ApiError(translate("Appointment not found", lang), 404));
         }
 
         if (appointment.status !== "accepted") {
             return next(
                 new ApiError(
-                    "Appointment cannot be updated unless it is accepted",
+                    translate("Appointment cannot be updated unless it is accepted", lang),
                     400
                 )
             );
@@ -146,7 +148,7 @@ class AppointmentController {
 
         const patient = appointment.patient;
         if (!patient) {
-            return next(new ApiError("Patient not found", 404));
+            return next(new ApiError(translate("Patient not found", lang), 404));
         }
 
         await this.#sendNotificationHelper(
@@ -169,11 +171,11 @@ class AppointmentController {
     // @access Public
     deleteAppointment = asyncHandler(async (req, res, next) => {
         const { id } = req.params;
-
+        const lang = req.headers.lang || "en";
         const appointment = await Appointment.findByIdAndDelete(id);
 
         if (!appointment) {
-            return next(new ApiError('Appointment not found', 404));
+            return next(new ApiError(translate('Appointment not found', lang), 404));
         }
 
         res.status(200).json({
@@ -189,6 +191,7 @@ class AppointmentController {
     changeAppointmentStatus = asyncHandler(async (req, res, next) => {
         const { id } = req.params;
         const { status, rejectionReason } = req.body;
+        const lang = req.headers.lang || "en";
 
         if (!APPOINTMENT_STATUS.includes(status)) {
             return next(
@@ -204,19 +207,19 @@ class AppointmentController {
             .populate("doctor", "_id fullName notificationToken");
 
         if (!appointment) {
-            return next(new ApiError("Appointment not found", 404));
+            return next(new ApiError(translate("Appointment not found", lang), 404));
         }
 
         if (appointment.status !== "pending") {
             return next(
-                new ApiError("Only pending appointments can be changed", 400)
+                new ApiError(translate("Only pending appointments can be changed", lang), 400)
             );
         }
 
         if (req.user.role === USER && status !== "canceled") {
             return next(
                 new ApiError(
-                    "Patients can only change status to canceled",
+                    translate("Patients can only change status to canceled", lang),
                     403
                 )
             );
@@ -229,7 +232,7 @@ class AppointmentController {
         ) {
             return next(
                 new ApiError(
-                    "You are not allowed to change this appointment status",
+                    translate("You are not allowed to change this appointment status", lang),
                     403
                 )
             );
@@ -245,14 +248,14 @@ class AppointmentController {
         if (status !== "rejected" && rejectionReason) {
             return next(
                 new ApiError(
-                    "Rejection reason is only allowed when status is rejected",
+                    translate("Rejection reason is only allowed when status is rejected", lang),
                     400
                 )
             );
         }
 
         if (status === "rejected" && (!rejectionReason || rejectionReason.trim() === "")) {
-            return next(new ApiError("Rejection reason is required", 400));
+            return next(new ApiError(translate("Rejection reason is required", lang), 400));
         }
 
         appointment.status = status;
