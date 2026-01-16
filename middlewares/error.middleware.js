@@ -1,23 +1,23 @@
 const ApiError = require("../utils/ApiError");
 const capitalizeFirstLetter = require("../utils/capitalizeFirstLetter");
+const { translate } = require("../utils/translation");
 
-const sendErrorForDev = (err, res) => {
+const sendErrorForDev = (err, res, lang) => {
   console.log("🚀 ~ sendErrorForDev ~ err:", err);
   res.status(err.statusCode).json({
     success: err.success || false,
-    message: err.message || "Something went wrong",
+    message: err.message || translate("Something went wrong", lang),
     stack: err.stack
   });
 };
 
-const sendErrorForProd = (err, res) => {
+const sendErrorForProd = (err, res, lang) => {
   if (!err.isOperational) {
     res.status(err.statusCode).json({
       success: false,
-      message: "Something went wrong"
+      message: translate("Something went wrong", lang)
     });
   } else {
-    // For other status codes
     res.status(err.statusCode).json({
       success: err.success || false,
       message: err.message
@@ -25,50 +25,66 @@ const sendErrorForProd = (err, res) => {
   }
 };
 
-const handleCastErrorDB = (err) => {
-  const message = `Invalid ${err.path}: ${err.value}`;
+const handleCastErrorDB = (err, lang) => {
+  const invalidText = translate("Invalid", lang);
+  const message = `${invalidText} ${err.path}: ${err.value}`;
   return new ApiError(message, 400);
 };
 
-const handleDuplicatedFieldsDB = (error) => {
-  const duplicateKey = Object.keys(error.keyPattern)[0]; // Extracting the duplicate key field
-  let errorMessage;
+const handleDuplicatedFieldsDB = (error, lang) => {
+  const duplicateKey = Object.keys(error.keyPattern)[0]; 
+  const alreadyUsed = translate("is already used", lang);
+  
+  let fieldName;
   if (duplicateKey.includes("Ar")) {
-    errorMessage = `Arabic ${duplicateKey.slice(0, -2)} is already used`;
+    const arabic = translate("Arabic", lang);
+    fieldName = `${arabic} ${duplicateKey.slice(0, -2)}`;
   } else if (duplicateKey.includes("En")) {
-    errorMessage = `English ${duplicateKey.slice(0, -2)} is already used`;
+    const english = translate("English", lang);
+    fieldName = `${english} ${duplicateKey.slice(0, -2)}`;
   } else {
-    errorMessage = `${capitalizeFirstLetter(duplicateKey)} is already used`;
+    fieldName = translate(duplicateKey, lang) || capitalizeFirstLetter(duplicateKey);
   }
+  
+  const errorMessage = `${fieldName} ${alreadyUsed}`;
   return new ApiError(errorMessage, 400);
 };
 
-const handleValidationError = (err) => {
+const handleValidationError = (err, lang) => {
   const errors = Object.values(err.errors).map((el) => {
-    return el.message;
+    return translate(el.message, lang);
   });
-  const message = `Invalid Input Data ${errors.join(". ")}`;
+  const invalidData = translate("Invalid Input Data", lang);
+  const message = `${invalidData}: ${errors.join(". ")}`;
   return new ApiError(message, 400);
 };
 
-const handleInvalidJwtSignature = (_) => new ApiError("Invalid token, Please login again ...", 400);
+const handleInvalidJwtSignature = (lang) => 
+  new ApiError(translate("Invalid token, Please login again ...", lang), 400);
 
-const handleJwtExpired = (_) => new ApiError("Expired token, Please login again ...", 400);
+const handleJwtExpired = (lang) => 
+  new ApiError(translate("Expired token, Please login again ...", lang), 400);
 
 const globalError = (err, req, res, next) => {
+  const lang = req.headers?.lang?.toLowerCase() || "en";
+  
   err.success = err.success || false;
   err.statusCode = err.statusCode || 500;
   let error = { ...err };
   error.message = err.message;
-  if (err.name === "JsonWebTokenError") error = handleInvalidJwtSignature();
-  if (err.name === "TokenExpiredError") error = handleJwtExpired();
-  if (err.code === 11000) error = handleDuplicatedFieldsDB(err);
-  if (err.name === "CastError") error = handleCastErrorDB(err);
-  if (err.name === "ValidationError") error = handleValidationError(err);
+  
+  if (err.name === "JsonWebTokenError") error = handleInvalidJwtSignature(lang);
+  if (err.name === "TokenExpiredError") error = handleJwtExpired(lang);
+  if (err.code === 11000) error = handleDuplicatedFieldsDB(err, lang);
+  if (err.name === "CastError") error = handleCastErrorDB(err, lang);
+  if (err.name === "ValidationError") error = handleValidationError(err, lang);
+  
+  error.message = translate(error.message, lang);
+  
   if (process.env.NODE_ENV === "development") {
-    sendErrorForDev(error, res);
+    sendErrorForDev(error, res, lang);
   } else {
-    sendErrorForProd(error, res);
+    sendErrorForProd(error, res, lang);
   }
 };
 
