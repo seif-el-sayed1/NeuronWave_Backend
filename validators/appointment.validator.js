@@ -4,6 +4,7 @@ const ApiError = require("../utils/ApiError");
 const joiErrorHandler = require("./joiErrorHandler");
 const { objectIdValidator } = require("./validatorComponents");
 const { APPOINTMENT_TYPES, USER, DOCTOR } = require("../utils/constants");
+const { translate } = require("../utils/translation");
 const Appointment = require("../models/appointment.model");
 const User = require("../models/user.model");
 const Doctor = require("../models/doctor.model");
@@ -30,18 +31,18 @@ class AppointmentValidator {
     };
 
     validateCreateAppointment = asyncHandler(async (req, res, next) => {
-
+        const lang = req.headers.lang || "en";
         if (req.user.role === USER) {
             if (req.body.patient)
-                return next(new ApiError("Patient not allowed", 403));
+                return next(new ApiError(translate("Patient not allowed", lang), 403));
 
             if (req.body.date || req.body.time)
-                return next(new ApiError("Date and time not allowed for patients", 403));
+                return next(new ApiError(translate("Date and time not allowed for patients", lang), 403));
 
             req.body.patient = req.user._id;
         } else {
             if (req.body.doctor)
-                return next(new ApiError("Doctor not allowed", 403));
+                return next(new ApiError(translate("Doctor not allowed", lang), 403));
 
             req.body.doctor = req.user._id;
         }
@@ -71,25 +72,26 @@ class AppointmentValidator {
 
             if (startTime < new Date()) {
                 return next(
-                    new ApiError("Appointment date and time cannot be in the past", 400)
+                    new ApiError(translate("Appointment date and time cannot be in the past", lang), 400)
                 );
             }
         }
 
         const existPatient = await User.findById(req.body.patient);
         if (!existPatient) {
-            return next(new ApiError("Patient not found", 404));
+            return next(new ApiError(translate("Patient not found", lang), 404));
         }
 
         const existDoctor = await Doctor.findById(req.body.doctor);
         if (!existDoctor) {
-            return next(new ApiError("Doctor not found", 404));
+            return next(new ApiError(translate("Doctor not found", lang), 404));
         }
 
         next();
     });
 
     validateUpdateAppointmentTime = asyncHandler(async (req, res, next) => {
+        const lang = req.headers.lang || "en";
         const schema = Joi.object({
             date: Joi.date().optional(),
             time: Joi.string()
@@ -104,7 +106,7 @@ class AppointmentValidator {
 
         const currentAppointment = await Appointment.findById(appointmentId);
         if (!currentAppointment) {
-            return next(new ApiError("Appointment not found", 404));
+            return next(new ApiError(translate("Appointment not found", lang), 404));
         }
 
         // Check if user is either the patient or the doctor of this appointment
@@ -113,7 +115,7 @@ class AppointmentValidator {
             userId !== currentAppointment.patient.toString() &&
             userId !== currentAppointment.doctor.toString()
         ) {
-            return next(new ApiError("You are not allowed to update this appointment", 403));
+            return next(new ApiError(translate("You are not allowed to update this appointment", lang), 403));
         }
 
         const newDate = date || currentAppointment.date;
@@ -121,7 +123,7 @@ class AppointmentValidator {
         const startTime = this.buildDateTime(newDate, newTime);
 
         if (startTime < new Date()) {
-            return next(new ApiError("Appointment date and time cannot be in the past", 400));
+            return next(new ApiError(translate("Appointment date and time cannot be in the past", lang), 400));
         }
 
         next();
