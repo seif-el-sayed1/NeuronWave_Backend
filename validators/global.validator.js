@@ -153,7 +153,11 @@ class GlobalValidator {
   });
 
   updateUserLangValidator = asyncHandler(async (req, res, next) => {
-    let lang = req.headers.lang?.toLowerCase();
+    let lang = req.headers.lang.toLowerCase();
+    console.log("🚀 ~ updateUserLangValidator ~ lang:", lang);
+    console.log(req.headers)
+    req.body = req.body || {};
+
     req.body.lang = lang;
     const schema = Joi.object({
       lang: Joi.string()
@@ -167,6 +171,9 @@ class GlobalValidator {
     joiErrorHandler(schema, req);
     next();
   });
+
+  
+
 }
 
 module.exports = new GlobalValidator();
