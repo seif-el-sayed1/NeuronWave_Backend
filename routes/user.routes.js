@@ -1,6 +1,6 @@
 const express = require("express");
 
-const { USER } = require("../utils/constants");
+const { USER, DOCTOR } = require("../utils/constants");
 
 // Middlewares
 const { protect, allowedTo } = require("../middlewares/auth.middleware");
@@ -8,6 +8,7 @@ const { protect, allowedTo } = require("../middlewares/auth.middleware");
 // Classes
 const UserController = require("../controllers/user.controller");
 const UserValidator = require("../validators/user.validator");
+const GlobalValidator = require("../validators/global.validator");
 // Router
 const router = express.Router();
 
@@ -28,5 +29,14 @@ router
         allowedTo(USER),
         UserController.deactivateMe
     )
+
+    router
+        .route("/lang")
+        .patch(
+            protect,
+            allowedTo(USER, DOCTOR),
+            GlobalValidator.updateUserLangValidator,
+            UserController.updateUserLang
+        );
 
 module.exports = router;
