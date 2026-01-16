@@ -6,6 +6,7 @@ const Notification = require("../models/notification.model");
 // Utils
 const ApiError = require("../utils/ApiError");
 const ApiFeatures = require("../utils/ApiFeatures");
+const { translate } = require("../utils/translation");
 
 class NotificationController {
 
@@ -77,7 +78,7 @@ class NotificationController {
 
       const notification = await Notification.findById(id);
       if (!notification) {
-          return next(new ApiError("Notification not found", 404));
+          return next(new ApiError(translate("Notification not found", req.headers.lang), 404));
       }
 
       await notification.updateOne({ seen: true });
