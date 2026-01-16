@@ -114,6 +114,10 @@ class AnalysisController {
         if (!patient) {
             return new ApiError(translate("Patient not found", lang), 404)
         }
+        const doctor = await Doctor.findById(analysis.doctor)
+        if (!doctor) {
+            return new ApiError(translate("Doctor not found", lang), 404)
+        }
 
         if (analysis.status !== "pending") {
             return next(new ApiError(`${translate("Analysis is not pending, you can't ", lang)} ${status}`, 400));
@@ -147,8 +151,8 @@ class AnalysisController {
                 await this.#sendNotificationHelper(
                     analysis,
                     patient,
-                    "Analysis Status Update",
-                    "Your analysis has been Approved",
+                    translate("Analysis Status Update", patient.lang),
+                    `Dr.${doctor.fullName.split(" ")[0]} ${translate("has approved your analysis", patient.lang)}`,
                     "analysisApproved"
                 )
 
@@ -167,8 +171,8 @@ class AnalysisController {
             await this.#sendNotificationHelper(
                 analysis,
                 patient,
-                "Analysis Status Update",
-                "Your analysis has been rejected",
+                translate("Analysis Status Update", patient.lang),
+                `Dr.${doctor.fullName.split(" ")[0]} ${translate("has rejected your analysis", patient.lang)}`,
                 "analysisRejected"
             )
 
@@ -212,8 +216,8 @@ class AnalysisController {
         await this.#sendNotificationHelper(
             analysis,
             existingDoctor,
-            "New Analysis Request",
-            "You have a new analysis request",
+            translate("New Analysis Request", existingDoctor.lang),
+            translate("You have a new analysis request", existingDoctor.lang),
             "analysisRequested"
         )
 
@@ -237,7 +241,7 @@ class AnalysisController {
             return next(new ApiError(translate("id and consultation are required", lang), 400));
         }
 
-        const analysis = await Analysis.findById(id);
+        const analysis = await Analysis.findById(id).populate("patient", "fullName notificationToken lang");
         if (!analysis) {
             return next(new ApiError(translate("Analysis not found", lang), 404));
         }
@@ -252,8 +256,8 @@ class AnalysisController {
         await this.#sendNotificationHelper(
             analysis,
             analysis.patient,
-            "You have a new analysis report",
-            `Dr ${req.user.fullName.split(" ")[0]} Write a consultation`,
+            translate("You have a new analysis report", analysis.patient.lang),
+            `Dr ${req.user.fullName.split(" ")[0]} ${translate("wrote you a consultation.", analysis.patient.lang)}`,
             "analysisConsultation"
         )
 
