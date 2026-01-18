@@ -30,12 +30,34 @@ router.route("/doctor")
         AppointmentController.getDoctorAppointments
     );
 
+router.route("/doctor/reports")
+    .get( 
+        protect, 
+        allowedTo(DOCTOR), 
+        AppointmentController.getDoctorReports
+    );
+
+router.route("/reports")
+    .get( 
+        protect, 
+        allowedTo(USER), 
+        AppointmentController.getMyReports
+    );
+
 router.route("/:id/status")
     .patch(
         protect,
         allowedTo(USER, DOCTOR),
         AppointmentController.changeAppointmentStatus
     );
+
+router
+    .route("/:id/reports")
+    .get(
+        protect,
+        allowedTo(USER, DOCTOR),
+        AppointmentController.generateAppointmentReport
+    )
 
 router.route("/:id")
     .patch( 
