@@ -45,6 +45,14 @@ router
     );
 
 router
+    .route("/doctor/reports")
+    .get(
+        protect,
+        allowedTo(DOCTOR),
+        AnalysisController.getDoctorReports
+    );
+
+router
     .route("/request")
     .post(
         protect,
@@ -74,7 +82,7 @@ router
     .route("/:id/reports")
     .get(
         protect,
-        allowedTo(USER),
+        allowedTo(USER, DOCTOR),
         AnalysisController.generateAnalysisReport
     )
 
