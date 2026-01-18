@@ -23,12 +23,15 @@ const analysisSchema = mongoose.Schema({
     media: [String],
     modelType: {
         type: String,
-        required: true
+        required: true //TODO: enum
     },
     result: {
         type: [mongoose.Schema.Types.Mixed],
         default: []
     },
+    note: {
+        type: String
+    },
     consultation: {
         type: String
     }
