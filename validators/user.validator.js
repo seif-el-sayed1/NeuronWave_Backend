@@ -44,6 +44,8 @@ class UserValidator {
         "any.required": "Phone is required",
       }),
 
+      dateOfBirth: Joi.date().required(),
+
       gender: Joi.string().valid("male", "female", "ذكر", "انثي").required(),
 
       emergencyContact: Joi.string().custom(phoneNumberValidator).required().messages({
@@ -87,6 +89,7 @@ class UserValidator {
           "Phone number must start with '0' and contain exactly 11 digits",
         "any.required": "Phone number is required",
       }),
+      dateOfBirth: Joi.date().optional(),
       email: Joi.string().email().optional(),
       age: Joi.number().min(0).required(),
       gender: Joi.string().valid("male", "female", "ذكر", "انثي").optional(),
