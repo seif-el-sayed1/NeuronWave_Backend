@@ -44,6 +44,9 @@ const userSchema = mongoose.Schema(
       type: String,
       trim: true
     },
+    dateOfBirh : {
+      type: Date,
+    },
     age: {
       type: Number,
       min: 0
