@@ -82,6 +82,7 @@ class AnalysisController {
             type: "byDoctor",
             media: req.files.map(f => f.path),
             modelType: modelType,
+            status: "approved",
             result: analysisResults.map(r => r.result),
         });
 
@@ -188,7 +189,7 @@ class AnalysisController {
     //@route POST /api/v1/analysis/request
     //@access Private
     requestAnalysis = asyncHandler(async (req, res, next) => {
-        const { doctor, modelType } = req.body;
+        const { doctor, modelType, note } = req.body;
         const lang = req.headers.lang
 
         if (!mongoose.Types.ObjectId.isValid(doctor) || !modelType) {
@@ -209,6 +210,7 @@ class AnalysisController {
             doctor: existingDoctor._id,
             media: req.files.map(f => f.path),
             modelType: modelType,
+            note
         });
 
         await analysis.save();
@@ -338,6 +340,30 @@ class AnalysisController {
         });
     })
 
+    //@desc get doctor reports
+    //@route /analysis/doctor/reports
+    //@access Private
+    getDoctorReports = asyncHandler(async(req, res, next) => {
+        const apiFeatures = new ApiFeatures(Analysis.find({ 
+            doctor: req.user._id,
+            status: "approved",
+            consultation: { $exists: true, $ne: null }
+        }).populate("patient", "fullName"), req.query, "Analysis")
+            .filter()
+            .sort()
+            .paginate()
+            .cleanResponse();
+        const reports = await apiFeatures.query;
+        res.json({
+            success: true,
+            totalResults: reports.length,
+            pagination: {
+                page: Number(req.query.page) || 1,
+                limit: Number(req.query.limit) || 20,
+            },
+            data: reports
+        });
+    })
 
     //@desc Analysis Reports
     //@route GET /api/v1/analysis/:id/report
@@ -352,22 +378,45 @@ class AnalysisController {
         const d = new Date(date);
         return d.toISOString().split('T')[0]; // YYYY-MM-DD
     };
-    
+    // @desc Generate analysis report PDF
+    // @route GET /api/v1/analysis/:id/report
+    // @access Private
     generateAnalysisReport = asyncHandler(async (req, res) => {
         const { id } = req.params;
 
         const analysis = await Analysis.findById(id);
+        if (!analysis) {
+            return res.status(404).json({
+                success: false,
+                message: "Analysis not found"
+            });
+        }
+
         const pdfBuffer = await generateAnalysisPDF(id);
 
         const modelTypeFormatted = this.#camelCaseToFileName(analysis.modelType);
-        const analysisDate = this.#formatDate(analysis.createdAt);
 
-        const fileName = `${modelTypeFormatted}-${analysisDate}.pdf`;
+        // Format date (YYYY-MM-DD)
+        const formattedDate = analysis.createdAt
+            ? analysis.createdAt.toISOString().split('T')[0]
+            : 'no-date';
+
+        // Format time (HH-MM)
+        const formattedTime = analysis.createdAt
+            ? analysis.createdAt
+                .toTimeString()
+                .split(' ')[0]
+                .replace(/:/g, '-')
+            : 'no-time';
+
+        const docId = analysis._id.toString();
+
+        const fileName = `${modelTypeFormatted}-${formattedDate}-${formattedTime}-${docId}.pdf`;
 
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader(
-        "Content-Disposition",
-        `inline; filename=${fileName}`
+            "Content-Disposition",
+            `inline; filename=${fileName}`
         );
 
         res.send(pdfBuffer);
