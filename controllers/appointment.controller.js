@@ -8,9 +8,7 @@ const Notification = require("../models/notification.model");
 const { USER, APPOINTMENT_STATUS, DOCTOR } = require("../utils/constants")
 const { sendNotification } = require("../utils/sendNotification");
 const { translate } = require("../utils/translation");
-
-
-
+const { generateAppointmentPDF } = require("../utils/generateReports");
 
 function formatTimeAr(time) {
     const [hourMin, period] = time.split(" "); // ["06:00", "PM"]
@@ -173,10 +171,11 @@ class AppointmentController {
 
         if (patient.lang === "ar") {
             const timeAr = formatTimeAr(req.body.time);
-            body = `Dr. ${doctorFirstName} قبل موعدك المحدد يوم ${req.body.date} الساعة ${timeAr}.`;
+            body = `د. ${doctorFirstName} أكد موعدك يوم ${req.body.date} الساعة ${timeAr}. يمكنك الآن الاطلاع على تقرير الموعد من التطبيق.`;
         } else {
-            body = `Dr. ${doctorFirstName} accepted your appointment scheduled on ${req.body.date} at ${req.body.time}.`;
+            body = `Dr. ${doctorFirstName} confirmed your appointment on ${req.body.date} at ${req.body.time}. You can now view the appointment report in the app.`;
         }
+
 
         await this.#sendNotificationHelper(
             appointment,
@@ -331,6 +330,101 @@ class AppointmentController {
             data: appointment
         });
     });
+
+    // @desc Generate appointment report PDF
+    // @route GET /appointments/:id/report
+    // @access Private 
+    generateAppointmentReport = asyncHandler(async (req, res, next) => {
+        const { id } = req.params;
+
+        const appointment = await Appointment.findById(id);
+        if (!appointment) {
+            return res.status(404).json({
+                success: false,
+                message: "Appointment not found"
+            });
+        }
+
+        const pdfBuffer = await generateAppointmentPDF(id);
+
+        const formattedDate = appointment.date
+            ? appointment.date.toISOString().split('T')[0]
+            : 'no-date';
+
+        const formattedTime = appointment.time
+            ? appointment.time.replace(/:/g, '-')
+            : 'no-time';
+
+        const fileName = `appointment-${formattedDate}-${formattedTime}.pdf`;
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${fileName}"`
+        );
+        res.setHeader('Content-Length', pdfBuffer.length);
+
+        res.send(pdfBuffer);
+    });
+
+
+    //@desc Get My Reports
+    //@route GET /appointments/reports
+    //@access Private
+    getMyReports = asyncHandler(async (req, res, next) => {
+        const apiFeatures = new ApiFeatures(
+            Appointment.find({ 
+                patient: req.user._id,
+                status: "accepted",
+                date: { $ne: null },
+                time: { $ne: null }
+            }).populate("doctor", "fullName"),
+            req.query,
+            "Appointment"
+        )
+            .filter()
+            .sort()
+            .paginate()
+            .cleanResponse();
+
+        const appointments = await apiFeatures.query;
+
+        res.json({
+            success: true,
+            totalResults: appointments.length,
+            pagination: {
+                page: Number(req.query.page) || 1,
+                limit: Number(req.query.limit) || 20,
+            },
+            data: appointments
+        });
+    });
+
+    //@desc Get Doctor Reports
+    //@route GET /appointments/doctor/reports
+    //@access Private
+    getDoctorReports = asyncHandler(async(req, res, next) => {
+        const apiFeatures = new ApiFeatures(Appointment.find({ 
+            doctor: req.user._id,
+            status: "accepted",
+            date: { $ne: null },
+            time: { $ne: null }
+        }).populate("patient", "fullName"), req.query, "Appointment")
+            .filter()
+            .sort()
+            .paginate()
+            .cleanResponse();
+        const appointments = await apiFeatures.query;
+        res.json({
+            success: true,
+            totalResults: appointments.length,
+            pagination: {
+                page: Number(req.query.page) || 1,
+                limit: Number(req.query.limit) || 20,
+            },
+            data: appointments
+        });
+    })    
 
 
 }
