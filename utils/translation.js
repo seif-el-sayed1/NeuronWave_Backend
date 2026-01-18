@@ -40,6 +40,7 @@ const ar = {
   "Medical Specialty is required" : "التخصص الطبي مطلوب",
   "Invalid Medical Specialty" : "تخصص غير صالح",
   "Gender is required" : "النوع مطلوب",
+  "DateOfBirth is required" : "تاريخ الميلاد مطلوب",
   // patients
   "Notes field is required" : "الملاحظات مطلوبة",
   "You are not allowed to update this patient" : "لا يمكنك تحديث هذا المريض",
