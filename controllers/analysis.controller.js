@@ -76,7 +76,7 @@ class AnalysisController {
             });
         }
 
-        const analysisDoc = new Analysis({
+        let analysisDoc = new Analysis({
             patient,
             doctor: req.user?._id || "system",
             type: "byDoctor",
@@ -87,6 +87,9 @@ class AnalysisController {
         });
 
         await analysisDoc.save();
+
+        // Populate patient
+        analysisDoc = await analysisDoc.populate("patient", "fullName");
 
         res.json({
             success: true,
