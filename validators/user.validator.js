@@ -52,7 +52,6 @@ class UserValidator {
         "any.required": "Emergency Contact is required",
       }),
 
-      age: Joi.number().min(0).required(),
 
       loginType: Joi.string().optional(),
 
