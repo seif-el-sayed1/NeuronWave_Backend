@@ -30,7 +30,10 @@ const appointmentSchema = new mongoose.Schema({
     },
     rejectionReason: {
         type: String,
-    }
+    },
+    notes: {
+        type: String,
+    },
 
 }, { timestamps: true });
 
