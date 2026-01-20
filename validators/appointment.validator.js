@@ -88,15 +88,16 @@ class AppointmentValidator {
         }
 
         next();
-    });
+    }); 
 
     validateUpdateAppointmentTime = asyncHandler(async (req, res, next) => {
         const lang = req.headers.lang || "en";
         const schema = Joi.object({
-            date: Joi.date().optional(),
+            date: Joi.date().required(),
             time: Joi.string()
                 .pattern(/^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i)
-                .optional()
+                .required(),
+            notes: Joi.string().optional()
         });
 
         joiErrorHandler(schema, req);
