@@ -3,7 +3,6 @@ const path = require("path");
 const fs = require("fs");
 const Analysis = require("../models/analysis.model");
 const Appointment = require("../models/appointment.model");
-const capitalizeFirstLetter = require("./capitalizeFirstLetter");
 
 const ARABIC_FONT = path.join(__dirname, "../fonts/Amiri-Regular.ttf");
 const LOGO_PATH = path.join(__dirname, "../uploads/images/logo.png");
@@ -13,7 +12,6 @@ const camelCaseToNormal = (text) => {
     .replace(/([A-Z])/g, ' $1')   
     .replace(/^./, c => c.toUpperCase());
 };
-
 
 const generateAnalysisPDF = async (analysisId) => {
     const analysis = await Analysis.findById(analysisId)
@@ -27,7 +25,7 @@ const generateAnalysisPDF = async (analysisId) => {
 
     const doc = new PDFDocument({
         size: "A4",
-        margin: 60,
+        margin: 50,
         info: { Title: "Analysis Report" }
     });
 
@@ -43,9 +41,9 @@ const generateAnalysisPDF = async (analysisId) => {
     /* ===== Page Border ===== */
     const drawBorder = () => {
         doc
-            .lineWidth(2)
+            .lineWidth(1.5)
             .strokeColor("#cccccc")
-            .rect(40, 40, doc.page.width - 80, doc.page.height - 80)
+            .rect(30, 30, doc.page.width - 60, doc.page.height - 60)
             .stroke();
     };
     drawBorder();
@@ -53,22 +51,22 @@ const generateAnalysisPDF = async (analysisId) => {
 
     /* ===== Header (Logo) ===== */
     if (fs.existsSync(LOGO_PATH)) {
-        const logoSize = 120;
+        const logoSize = 80;
         const logoX = doc.page.width / 2 - logoSize / 2;
-        const logoY = 60;
+        const logoY = 45;
         doc.image(LOGO_PATH, logoX, logoY, { width: logoSize });
     }
 
-    doc.y = 60 + 120 + 10;
+    doc.y = 45 + 80 + 10;
 
     /* ===== Info Box ===== */
-    const boxX = 60;
-    const boxWidth = 480;
+    const boxX = 50;
+    const boxWidth = doc.page.width - 100;
     const hasVideo = analysis.media && analysis.media.length > 0;
-    const infoBoxHeight = hasVideo ? 165 : 140;
+    const infoBoxHeight = hasVideo ? 140 : 120;
     const infoBoxY = doc.y;
 
-    doc.lineWidth(2).roundedRect(boxX, infoBoxY, boxWidth, infoBoxHeight, 12).stroke("#93c5fd");
+    doc.lineWidth(1.5).roundedRect(boxX, infoBoxY, boxWidth, infoBoxHeight, 10).stroke("#93c5fd");
 
     const createdAt = new Date(analysis.createdAt).toLocaleString("en-GB", {
         day: "2-digit",
@@ -78,21 +76,21 @@ const generateAnalysisPDF = async (analysisId) => {
         minute: "2-digit"
     });
 
-    const labelX = boxX + 20;
-    const valueX = boxX + 150;
+    const labelX = boxX + 15;
+    const valueX = boxX + 130;
 
-    doc.fontSize(12).fillColor("#111").font("Helvetica-Bold").text("Date & Time:", labelX, infoBoxY + 15);
-    doc.font("Helvetica").text(createdAt, valueX, infoBoxY + 15);
+    doc.fontSize(10).fillColor("#111").font("Helvetica-Bold").text("Date & Time:", labelX, infoBoxY + 12);
+    doc.font("Helvetica").text(createdAt, valueX, infoBoxY + 12);
 
-    doc.font("Helvetica-Bold").text("Doctor:", labelX, infoBoxY + 40);
-    doc.font("Helvetica").text(analysis.doctor?.fullName || "N/A", valueX, infoBoxY + 40);
+    doc.font("Helvetica-Bold").text("Doctor:", labelX, infoBoxY + 32);
+    doc.font("Helvetica").text(analysis.doctor?.fullName || "N/A", valueX, infoBoxY + 32);
 
-    doc.font("Helvetica-Bold").text("Patient:", labelX, infoBoxY + 65);
-    doc.font("Helvetica").text(analysis.patient?.fullName || "N/A", valueX, infoBoxY + 65);
+    doc.font("Helvetica-Bold").text("Patient:", labelX, infoBoxY + 52);
+    doc.font("Helvetica").text(analysis.patient?.fullName || "N/A", valueX, infoBoxY + 52);
 
-    doc.font("Helvetica-Bold").text("Analysis Type:", labelX, infoBoxY + 90);
+    doc.font("Helvetica-Bold").text("Analysis Type:", labelX, infoBoxY + 72);
     const normalText = camelCaseToNormal(analysis.modelType);
-    doc.font("Helvetica").text(normalText, valueX, infoBoxY + 90);
+    doc.font("Helvetica").text(normalText, valueX, infoBoxY + 72);
 
     if (hasVideo) {
         let videoUrl = analysis.media[0];
@@ -104,13 +102,13 @@ const generateAnalysisPDF = async (analysisId) => {
             videoUrl = `${backendUrl}${mediaPath}`;
         }
 
-        doc.font("Helvetica-Bold").fillColor("#111").text("Video:", labelX, infoBoxY + 115);
+        doc.font("Helvetica-Bold").fillColor("#111").text("Video:", labelX, infoBoxY + 92);
         
         const linkText = "Click here";
         
         doc.font("Helvetica")
             .fillColor(PRIMARY_COLOR)
-            .text(linkText, valueX, infoBoxY + 115, {
+            .text(linkText, valueX, infoBoxY + 92, {
                 link: videoUrl,
                 underline: true
             });
@@ -118,13 +116,13 @@ const generateAnalysisPDF = async (analysisId) => {
         doc.fillColor("#111");
     }
 
-    doc.y = infoBoxY + infoBoxHeight + 30;
+    doc.y = infoBoxY + infoBoxHeight + 15;
 
     /* ===== Result Box (for handAnalysis only) ===== */
     if (analysis.modelType === 'handAnalysis' && analysis.result && analysis.result.length > 0) {
         const resultData = analysis.result[0];
         const resultBoxY = doc.y;
-        const padding = 20;
+        const padding = 15;
         
         const hands = ['leftHand', 'rightHand'];
         let handCount = 0;
@@ -134,21 +132,20 @@ const generateAnalysisPDF = async (analysisId) => {
             }
         });
         
-        // Title (30) + padding top (20) + padding bottom (20) + each hand (65px)
-        const resultBoxHeight = 70 + (handCount * 65);
+        const resultBoxHeight = 55 + (handCount * 50);
 
         doc.lineWidth(1.5)
-            .roundedRect(boxX, resultBoxY, boxWidth, resultBoxHeight, 12)
+            .roundedRect(boxX, resultBoxY, boxWidth, resultBoxHeight, 10)
             .stroke("#93c5fd");
 
-        doc.fontSize(14)
+        doc.fontSize(12)
             .fillColor(PRIMARY_COLOR)
             .font("Helvetica-Bold")
             .text("Analysis Result:", boxX + padding, resultBoxY + padding);
 
         const resultLabelX = boxX + padding;
-        const resultValueX = boxX + 200;
-        let currentY = resultBoxY + padding + 30;
+        const resultValueX = boxX + 180;
+        let currentY = resultBoxY + padding + 25;
 
         // Loop through hands
         hands.forEach(hand => {
@@ -157,18 +154,18 @@ const generateAnalysisPDF = async (analysisId) => {
                 const handName = hand === 'leftHand' ? 'Left Hand' : 'Right Hand';
                 
                 // Hand Title
-                doc.fontSize(12)
+                doc.fontSize(10)
                     .fillColor("#111")
                     .font("Helvetica-Bold")
                     .text(`${handName}:`, resultLabelX, currentY);
                 
-                currentY += 20;
+                currentY += 16;
 
                 // Prediction
-                doc.fontSize(11)
+                doc.fontSize(9)
                     .fillColor("#555")
                     .font("Helvetica-Bold")
-                    .text("Prediction:", resultLabelX + 20, currentY);
+                    .text("Prediction:", resultLabelX + 15, currentY);
 
                 const predictionStatus = handData.prediction ? "Positive" : "Negative";
                 const predictionColor = handData.prediction ? "#dc2626" : "#16a34a";
@@ -177,12 +174,12 @@ const generateAnalysisPDF = async (analysisId) => {
                     .fillColor(predictionColor)
                     .text(predictionStatus, resultValueX, currentY);
 
-                currentY += 20;
+                currentY += 16;
 
                 // Probability
                 doc.fillColor("#555")
                     .font("Helvetica-Bold")
-                    .text("Probability:", resultLabelX + 20, currentY);
+                    .text("Probability:", resultLabelX + 15, currentY);
 
                 const probability = (handData.probability * 100).toFixed(2);
 
@@ -190,12 +187,12 @@ const generateAnalysisPDF = async (analysisId) => {
                     .fillColor(PRIMARY_COLOR)
                     .text(`${probability}%`, resultValueX, currentY);
 
-                currentY += 25;
+                currentY += 18;
             }
         });
 
         doc.fillColor("#111");
-        doc.y = resultBoxY + resultBoxHeight + 30;
+        doc.y = resultBoxY + resultBoxHeight + 15;
     }
 
     /* ===== Consultation Box ===== */
@@ -204,27 +201,27 @@ const generateAnalysisPDF = async (analysisId) => {
 
     const startY = doc.y;
 
-    const padding = 20;
+    const padding = 15;
     const textWidth = boxWidth - padding * 2;
 
-    doc.font(hasArabic && fs.existsSync(ARABIC_FONT) ? "ArabicFont" : "Helvetica").fontSize(12);
+    doc.font(hasArabic && fs.existsSync(ARABIC_FONT) ? "ArabicFont" : "Helvetica").fontSize(10);
 
     const consultationHeight = doc.heightOfString(consultationText, {
         width: textWidth,
         align: hasArabic ? "right" : "justify",
-        lineGap: 6,
+        lineGap: 4,
         features: hasArabic ? ["rlig", "calt"] : undefined 
     });
 
-    const titleHeight = 30; 
+    const titleHeight = 25; 
     const consultBoxHeight = consultationHeight + titleHeight + padding * 2;
 
     const consultBoxY = startY;
 
-    doc.lineWidth(1.5).roundedRect(boxX, consultBoxY, boxWidth, consultBoxHeight, 12)
+    doc.lineWidth(1.5).roundedRect(boxX, consultBoxY, boxWidth, consultBoxHeight, 10)
         .stroke("#e5e7eb");
 
-    doc.fontSize(14)
+    doc.fontSize(12)
         .fillColor(PRIMARY_COLOR)
         .font("Helvetica-Bold")
         .text("Consultation:", boxX + padding, consultBoxY + padding);
@@ -233,26 +230,54 @@ const generateAnalysisPDF = async (analysisId) => {
 
     if (hasArabic && fs.existsSync(ARABIC_FONT)) {
         doc.font("ArabicFont")
-            .fontSize(12)
+            .fontSize(10)
             .fillColor("#333")
             .text(consultationText, boxX + padding, textStartY, {
                 width: textWidth,
                 align: "right",
                 direction: "rtl",
-                lineGap: 6
+                lineGap: 4
             });
     } else {
         doc.font("Helvetica")
-            .fontSize(12)
+            .fontSize(10)
             .fillColor("#333")
             .text(consultationText, boxX + padding, textStartY, {
                 width: textWidth,
                 align: "justify",
-                lineGap: 6
+                lineGap: 4
             });
     }
 
-    doc.y = consultBoxY + consultBoxHeight + 30;
+    doc.y = consultBoxY + consultBoxHeight + 15;
+
+    /* ===== Signatures Section ===== */
+    const signatureWidth = 180;
+    const doctorSignX = boxX;
+    const patientSignX = doc.page.width - 50 - signatureWidth;
+    const signatureLineY = doc.y;
+
+    // Doctor Signature
+    doc.fontSize(9)
+        .fillColor("#111")
+        .font("Helvetica-Bold")
+        .text("Doctor Signature", doctorSignX, signatureLineY, { width: signatureWidth, align: "center" });
+
+    doc.fontSize(10)
+        .fillColor("#666")
+        .font("Helvetica")
+        .text("_".repeat(26), doctorSignX, signatureLineY + 16, { width: signatureWidth, align: "center" });
+
+    // Patient Signature
+    doc.fontSize(9)
+        .fillColor("#111")
+        .font("Helvetica-Bold")
+        .text("Patient Signature", patientSignX, signatureLineY, { width: signatureWidth, align: "center" });
+
+    doc.fontSize(10)
+        .fillColor("#666")
+        .font("Helvetica")
+        .text("_".repeat(26), patientSignX, signatureLineY + 16, { width: signatureWidth, align: "center" });
 
     doc.end();
 
@@ -352,9 +377,65 @@ const generateAppointmentPDF = async (appointmentId) => {
     const typeText = camelCaseToNormal(appointment.type);
     doc.font("Helvetica").text(typeText, valueX, infoBoxY + 115);
 
+    doc.y = infoBoxY + infoBoxHeight + 30;
+
+    /* ===== Notes Box (if exists) ===== */
+    if (appointment.notes) {
+        const notesBoxY = doc.y;
+        const padding = 20;
+        const textWidth = boxWidth - padding * 2;
+
+        const hasArabic = /[\u0600-\u06FF]/.test(appointment.notes);
+
+        doc.font(hasArabic && fs.existsSync(ARABIC_FONT) ? "ArabicFont" : "Helvetica").fontSize(12);
+
+        const notesHeight = doc.heightOfString(appointment.notes, {
+            width: textWidth,
+            align: hasArabic ? "right" : "justify",
+            lineGap: 6
+        });
+
+        const titleHeight = 30;
+        const notesBoxHeight = notesHeight + titleHeight + padding * 2;
+
+        doc.lineWidth(1.5)
+            .roundedRect(boxX, notesBoxY, boxWidth, notesBoxHeight, 12)
+            .stroke("#93c5fd");
+
+        doc.fontSize(14)
+            .fillColor(PRIMARY_COLOR)
+            .font("Helvetica-Bold")
+            .text("Notes:", boxX + padding, notesBoxY + padding);
+
+        const textStartY = notesBoxY + padding + titleHeight;
+
+        if (hasArabic && fs.existsSync(ARABIC_FONT)) {
+            doc.font("ArabicFont")
+                .fontSize(12)
+                .fillColor("#333")
+                .text(appointment.notes, boxX + padding, textStartY, {
+                    width: textWidth,
+                    align: "right",
+                    direction: "rtl",
+                    lineGap: 6
+                });
+        } else {
+            doc.font("Helvetica")
+                .fontSize(12)
+                .fillColor("#333")
+                .text(appointment.notes, boxX + padding, textStartY, {
+                    width: textWidth,
+                    align: "justify",
+                    lineGap: 6
+                });
+        }
+
+        doc.y = notesBoxY + notesBoxHeight + 30;
+    }
+
     /* ===== Rejection Reason Box (if exists) ===== */
     if (appointment.rejectionReason) {
-        const reasonBoxY = infoBoxY + infoBoxHeight + 30;
+        const reasonBoxY = doc.y;
         const padding = 20;
         const textWidth = boxWidth - padding * 2;
 
@@ -405,6 +486,45 @@ const generateAppointmentPDF = async (appointmentId) => {
 
         doc.y = reasonBoxY + reasonBoxHeight + 30;
     }
+
+    /* ===== Signatures Section ===== */
+    const pageBottom = doc.page.height - 60;
+    const signaturesY = Math.max(doc.y + 40, pageBottom - 100);
+
+    // Check if we need a new page for signatures
+    if (signaturesY + 80 > pageBottom) {
+        doc.addPage();
+        doc.y = 80;
+    } else {
+        doc.y = signaturesY;
+    }
+
+    const signatureWidth = 200;
+    const doctorSignX = boxX;
+    const patientSignX = doc.page.width - 60 - signatureWidth;
+    const signatureLineY = doc.y;
+
+    // Doctor Signature
+    doc.fontSize(10)
+        .fillColor("#111")
+        .font("Helvetica-Bold")
+        .text("Doctor Signature", doctorSignX, signatureLineY, { width: signatureWidth, align: "center" });
+
+    doc.fontSize(11)
+        .fillColor("#666")
+        .font("Helvetica")
+        .text("_".repeat(30), doctorSignX, signatureLineY + 20, { width: signatureWidth, align: "center" });
+
+    // Patient Signature
+    doc.fontSize(10)
+        .fillColor("#111")
+        .font("Helvetica-Bold")
+        .text("Patient Signature", patientSignX, signatureLineY, { width: signatureWidth, align: "center" });
+
+    doc.fontSize(11)
+        .fillColor("#666")
+        .font("Helvetica")
+        .text("_".repeat(30), patientSignX, signatureLineY + 20, { width: signatureWidth, align: "center" });
 
     doc.end();
 
