@@ -44,18 +44,7 @@ class UserController {
 
       // Check if user account is deactivated
       if (!user.isActive) {
-          const targetDate = new Date(user.deactivatedAt);
-          const currentDate = new Date();
-          const timeDifference = currentDate - targetDate;
-          const millisecondsIn15Days = 15 * 24 * 60 * 60 * 1000;
-
-          if (timeDifference >= millisecondsIn15Days) {
-              return next(new ApiError(translate("Incorrect Email or password", lang), 404));
-          } else {
-              user.deactivatedAt = undefined;
-              user.isActive = true;
-              message = "Welcome back! Your account has been reactivated.";
-          }
+        return next(new ApiError(translate("Incorrect Email or password", lang), 403))
       }
 
       // Check if account is verified
@@ -92,6 +81,7 @@ class UserController {
       // Save notification token
       if (req.body.notificationToken) user.notificationToken = req.body.notificationToken;
 
+      
       user.lastVisit = new Date();
 
       await user.save();
@@ -111,7 +101,6 @@ class UserController {
           }
       });
   });
-
 
 
   // @desc    Log In
