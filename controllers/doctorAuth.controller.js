@@ -2,6 +2,8 @@ const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 const crypto = require("crypto");
 const Doctor = require("../models/doctor.model");
+const Appointment = require("../models/appointment.model");
+const Analysis = require("../models/analysis.model");
 const ApiError = require("../utils/ApiError");
 const { translate } = require("../utils/translation");
 const { generateCode, hashCode } = require("../utils/generateCode");
@@ -28,86 +30,102 @@ class DoctorController {
 
   login = (doctor, loginType) =>
     asyncHandler(async (req, res, next) => {
-      const { password, email } = req.body;
-      const lang = req.headers.lang || "en";
+        const { password } = req.body;
+        const lang = req.headers.lang || "en";
 
-      if (loginType && loginType !== doctor.loginType)
-          return next(new ApiError(translate("Incorrect Email or password", lang), 403));
-      else if (!loginType) {
-          if (!(await doctor.comparePassword(password)))
-              return next(new ApiError(translate("Incorrect Email or password", lang), 403));
-      }
+        if (loginType && loginType !== doctor.loginType) {
+            return next(new ApiError(translate("Incorrect Email or password", lang), 403));
+        }
 
-      // Response Msg
-      let message = `Welcome back ${doctor.fullName || ""}!`;
+        if (!loginType && !(await doctor.comparePassword(password))) {
+            return next(new ApiError(translate("Incorrect Email or password", lang), 403));
+        }
 
-      // Check if doctor account is deactivated
-      if (!doctor.isActive) {
-          const targetDate = new Date(doctor.deactivatedAt);
-          const currentDate = new Date();
-          const timeDifference = currentDate - targetDate;
-          const millisecondsIn15Days = 15 * 24 * 60 * 60 * 1000;
+        let message = `Welcome back ${doctor.fullName || ""}!`;
+        if (!doctor.isActive) {
+            const targetDate = new Date(doctor.deactivatedAt);
+            const currentDate = new Date();
+            const timeDifference = currentDate - targetDate;
+            const millisecondsIn15Days = 15 * 24 * 60 * 60 * 1000;
 
-          if (timeDifference >= millisecondsIn15Days) {
-              return next(new ApiError(translate("Incorrect Email or password", lang), 404));
-          } else {
-              doctor.deactivatedAt = undefined;
-              doctor.isActive = true;
-              message = "Welcome back! Your account has been reactivated.";
-          }
-      }
+            if (timeDifference >= millisecondsIn15Days) {
+                return next(new ApiError(translate("Incorrect Email or password", lang), 404));
+            } else {
+                doctor.deactivatedAt = undefined;
+                doctor.isActive = true;
+                message = translate("Welcome back! Your account has been reactivated.", lang);
+            }
+        }
 
-      // Check if account is verified
-      if (!doctor.isVerified) {
-          const { code, hashedCode } = await generateCode();
-          doctor.verificationCode = hashedCode;
-          doctor.verificationCodeExp = Date.now() + 10 * 60 * 1000;
-          await doctor.save();
+        if (!doctor.isVerified) {
+            const { code, hashedCode } = await generateCode();
+            doctor.verificationCode = hashedCode;
+            doctor.verificationCodeExp = Date.now() + 10 * 60 * 1000;
+            await doctor.save();
 
-          if (doctor.email) {
-              await userVerificationEmail(code, doctor.email);
+            if (doctor.email) {
+                await userVerificationEmail(code, doctor.email);
+                return res.status(200).json({
+                    success: true,
+                    message: translate("Verification OTP is sent to your Email", lang),
+                    data: {
+                        ...this.#getDoctorData(doctor, lang)
+                    }
+                });
+            }
+        }
 
-              return res.status(200).json({
-                  success: true,
-                  message: "Verification OTP is sent to your Email",
-                  data: {
-                      ...this.#getDoctorData(doctor, lang)
-                  }
-              });
-          }
-      }
+        if (doctor.isBlocked) {
+            return next(
+                new ApiError(
+                    translate("Your account is blocked, please contact the support team", lang),
+                    403
+                )
+            );
+        }
 
-      if (doctor.isBlocked)
-          return next(
-              new ApiError(
-                  translate("Your account is blocked, please contact the support team", lang),
-                  403
-              )
-          );
+        const token = await doctor.generateToken();
+        if (req.body.notificationToken) doctor.notificationToken = req.body.notificationToken;
+        await doctor.save();
 
-      // generate token
-      const token = await doctor.generateToken();
+        const [appointmentsReports, analysesReports, pendingAnalyses] = await Promise.all([
+            Appointment.find({
+                doctor: doctor._id,
+                status: "accepted",
+                date: { $ne: null },
+                time: { $ne: null }
+            }),
+            Analysis.find({
+                doctor: doctor._id,
+                status: "approved",
+                consultation: { $exists: true, $ne: null }
+            }),
+            Analysis.find({
+                doctor: doctor._id,
+                status: "pending"
+            })
+        ]);
 
-      // Save notification token
-      if (req.body.notificationToken) doctor.notificationToken = req.body.notificationToken;
-      await doctor.save();
+        const totalReports = appointmentsReports.length + analysesReports.length;
 
-      // Remove password from the response
-      DocumentPermissionInstance.password = undefined;
-      DocumentPermissionInstance.isVerified = undefined;
-      DocumentPermissionInstance.isActive = undefined;
+        const responseDoctor = {
+            ...doctor.toObject(),
+            password: undefined,
+            isVerified: undefined,
+            isActive: undefined
+        };
 
-      // response
-      res.status(200).json({
-          success: true,
-          message,
-          data: {
-              ...this.#getDoctorData(doctor, lang),
-              // unseenNotifications,
-              ...token
-          }
-      });
-  });
+        res.status(200).json({
+            success: true,
+            message,
+            totalReports,
+            pendingAnalyses: pendingAnalyses.length,
+            data: {
+                ...this.#getDoctorData(responseDoctor, lang),
+                ...token
+            }
+        });
+    });
 
   // @desc    Log In
   // @route   POST /doctors/auth/login
