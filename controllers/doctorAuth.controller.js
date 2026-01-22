@@ -43,18 +43,7 @@ class DoctorController {
 
         let message = `Welcome back ${doctor.fullName || ""}!`;
         if (!doctor.isActive) {
-            const targetDate = new Date(doctor.deactivatedAt);
-            const currentDate = new Date();
-            const timeDifference = currentDate - targetDate;
-            const millisecondsIn15Days = 15 * 24 * 60 * 60 * 1000;
-
-            if (timeDifference >= millisecondsIn15Days) {
-                return next(new ApiError(translate("Incorrect Email or password", lang), 404));
-            } else {
-                doctor.deactivatedAt = undefined;
-                doctor.isActive = true;
-                message = translate("Welcome back! Your account has been reactivated.", lang);
-            }
+            return next(new ApiError(translate("Incorrect Email or password", lang), 403));
         }
 
         if (!doctor.isVerified) {
