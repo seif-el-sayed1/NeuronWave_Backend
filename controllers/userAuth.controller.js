@@ -2,6 +2,8 @@ const asyncHandler = require("express-async-handler");
 const mongoose = require("mongoose");
 const crypto = require("crypto");
 const User = require("../models/user.model");
+const Appointment = require("../models/appointment.model");
+const Analysis = require("../models/analysis.model");
 const ApiError = require("../utils/ApiError");
 const { translate } = require("../utils/translation");
 const { generateCode, hashCode } = require("../utils/generateCode");
@@ -29,78 +31,88 @@ class UserController {
 
   login = (user, loginType) =>
     asyncHandler(async (req, res, next) => {
-      const { password, email } = req.body;
-      const lang = req.headers.lang || "en";
+        const { password } = req.body;
+        const lang = req.headers.lang || "en";
 
-      if (loginType && loginType !== user.loginType)
-          return next(new ApiError(translate("Incorrect Email or password", lang), 403));
-      else if (!loginType) {
-          if (!(await user.comparePassword(password)))
-              return next(new ApiError(translate("Incorrect Email or password", lang), 403));
-      }
+        if (loginType && loginType !== user.loginType) {
+            return next(new ApiError(translate("Incorrect Email or password", lang), 403));
+        }
 
-      // Response Msg
-      let message = `Welcome back ${user.fullName || ""}!`;
+        if (!loginType && !(await user.comparePassword(password))) {
+            return next(new ApiError(translate("Incorrect Email or password", lang), 403));
+        }
 
-      // Check if user account is deactivated
-      if (!user.isActive) {
-        return next(new ApiError(translate("Incorrect Email or password", lang), 403))
-      }
+        if (!user.isActive) {
+            return next(new ApiError(translate("Incorrect Email or password", lang), 403));
+        }
 
-      // Check if account is verified
-      if (!user.isVerified) {
-          const { code, hashedCode } = await generateCode();
-          user.verificationCode = hashedCode;
-          user.verificationCodeExp = Date.now() + 10 * 60 * 1000;
-          await user.save();
+        if (user.isBlocked) {
+            return next(
+                new ApiError(
+                    translate("Your account is blocked, please contact the support team", lang),
+                    403
+                )
+            );
+        }
 
-          if (user.email) {
-              await userVerificationEmail(code, user.email);
+        if (!user.isVerified) {
+            const { code, hashedCode } = await generateCode();
+            user.verificationCode = hashedCode;
+            user.verificationCodeExp = Date.now() + 10 * 60 * 1000;
+            await user.save();
 
-              return res.status(200).json({
-                  success: true,
-                  message: "Verification OTP is sent to your Email",
-                  data: {
-                      ...this.#getUsersData(user, lang)
-                  }
-              });
-          }
-      }
+            if (user.email) {
+                await userVerificationEmail(code, user.email);
+                return res.status(200).json({
+                    success: true,
+                    message: translate("Verification OTP is sent to your Email", lang),
+                    data: {
+                        ...this.#getUsersData(user, lang)
+                    }
+                });
+            }
+        }
 
-      if (user.isBlocked)
-          return next(
-              new ApiError(
-                  translate("Your account is blocked, please contact the support team", lang),
-                  403
-              )
-          );
+        const token = await user.generateToken();
 
-      // generate token
-      const token = await user.generateToken();
+        if (req.body.notificationToken) user.notificationToken = req.body.notificationToken;
+        user.lastVisit = new Date();
+        await user.save();
 
-      // Save notification token
-      if (req.body.notificationToken) user.notificationToken = req.body.notificationToken;
+        const [appointmentsReports, analysesReports] = await Promise.all([
+            Appointment.find({
+                patient: user._id,
+                status: "accepted",
+                date: { $ne: null },
+                time: { $ne: null }
+            }),
+            Analysis.find({
+                patient: user._id,
+                status: "approved",
+                consultation: { $exists: true, $ne: null }
+            })
+        ]);
 
-      
-      user.lastVisit = new Date();
+        const totalReports = appointmentsReports.length + analysesReports.length;
 
-      await user.save();
+        const responseUser = {
+            ...user.toObject(),
+            password: undefined,
+            isVerified: undefined,
+            isActive: undefined
+        };
 
-      // Remove password from the response
-      user.password = undefined;
-      user.isVerified = undefined;
-      user.isActive = undefined;
+        res.status(200).json({
+            success: true,
+            message: `Welcome back ${user.fullName || ""}!`,
+            totalReports,
+            data: {
+                ...this.#getUsersData(responseUser, lang),
+                ...token
+            }
+        });
+    });
 
-      // response
-      res.status(200).json({
-          success: true,
-          message,
-          data: {
-              ...this.#getUsersData(user, lang),
-              ...token
-          }
-      });
-  });
 
 
   // @desc    Log In
