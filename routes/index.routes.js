@@ -1,8 +1,7 @@
 const appRouter = require("express").Router();
 const BASE_URL = "/api/v1";
-
-const ApiError = require("../utils/ApiError");
-let adminAuthRoutes = require("./adminAuth.routes")
+const ApiError = require("../utils/apiError");
+// let adminAuthRoutes = require("./adminAuth.routes")
 let userAuthRoutes = require("./userAuth.routes")
 let doctorAuthRoutes = require("./doctorAuth.routes")
 let oAuthRoutes = require("./oAuth.routes")
@@ -15,7 +14,7 @@ let analysisRoutes = require("./analysis.routes")
 let cityRoutes = require("./city.routes")
 let countryRoutes = require("./country.routes")
 
-appRouter.use(`${BASE_URL}/admins/auth`, adminAuthRoutes);
+// appRouter.use(`${BASE_URL}/admins/auth`, adminAuthRoutes);
 appRouter.use(`${BASE_URL}/users/auth`, userAuthRoutes);
 appRouter.use(`${BASE_URL}/doctors/auth`, doctorAuthRoutes);
 appRouter.use(`${BASE_URL}/oauth`, oAuthRoutes);
