@@ -15,7 +15,7 @@ const PORT = args.port || process.env.PORT || 8000;
 // Startup
 require("./startup/logging")(app);
 require("./startup/app")(app);
-require("./startup/createSuperAdmin")();
+require("./startup/createSuperDoctor")();
 require("./startup/db")();
 // require("./startup/cronJobs")();
 // Server
