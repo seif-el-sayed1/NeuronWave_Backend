@@ -46,8 +46,16 @@ const doctorSchema = mongoose.Schema(
     medicalSpecialty: {
         type: String,
         enum: MEDICAL_SPECIALTIES,
-        required: true
     },
+    isSuperDoctor: {
+      type: Boolean,
+    },
+    hospitals: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Hospital",
+      },
+    ],
     // Password
     password: {
       type: String,
