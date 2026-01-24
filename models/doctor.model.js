@@ -124,7 +124,7 @@ doctorSchema.methods.generateToken = async function () {
   const token = jwt.sign(
     {
       userId: this._id,
-      role: DOCTOR,
+      role: this.role,
     },
     process.env.JWT_SECRET,
     {
