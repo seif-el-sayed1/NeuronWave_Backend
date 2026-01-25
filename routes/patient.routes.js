@@ -1,7 +1,7 @@
 const express = require("express");
 
 // constants
-const { DOCTOR } = require("../utils/constants");
+const { DOCTOR, SUPER_DOCTOR } = require("../utils/constants");
 
 // Middlewares
 const { protect, allowedTo } = require("../middlewares/auth.middleware");
@@ -22,7 +22,7 @@ router.route("/")
     )
     .get(
         protect,
-        allowedTo(DOCTOR),
+        allowedTo(DOCTOR, SUPER_DOCTOR),
         PatientsController.getAllPatients
     )
 
