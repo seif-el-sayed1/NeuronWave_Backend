@@ -10,9 +10,10 @@ class ApiFeatures {
         if (!keyword) return this;
         // search fields for each model
         const searchFields = {
-            User: ["fullName","email","phone"],
-            Doctor: ["fullName","email","phone"],
+            User: ["fullName","email"],
+            Doctor: ["fullName","email"],
             Notification: ["body"],
+            Hospital: ["hospitalName"],
         };
 
         const fields = searchFields[this.modelName];
@@ -32,7 +33,7 @@ class ApiFeatures {
         const queryObj = { ...this.queryString };
 
         // remove common fields
-        const removeFields = ["search", "page", "limit", "sort", "select"];
+        const removeFields = ["search", "page", "limit", "sort", "select", "type"];
         removeFields.forEach((key) => delete queryObj[key]);
 
         // Handle date range safely
