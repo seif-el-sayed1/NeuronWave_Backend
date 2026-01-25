@@ -6,7 +6,7 @@ const User = require('../models/user.model');
 const Analysis = require('../models/analysis.model');
 const Appointment = require('../models/appointment.model');
 const Hospital = require('../models/hospital.model');
-const { translate } = require('../utils/translate');
+const { translate } = require('../utils/translation');
 
 class SuperDoctorController {
     // @desc Get all Users
