@@ -1,6 +1,6 @@
 const express = require("express");
 
-const { DOCTOR } = require("../utils/constants");
+const { DOCTOR, SUPER_DOCTOR } = require("../utils/constants");
 
 // Middlewares
 const { protect, allowedTo } = require("../middlewares/auth.middleware");
@@ -36,13 +36,13 @@ router
 router.patch(
   "/change-password",
   protect,
-  allowedTo(DOCTOR),
+  allowedTo(DOCTOR, SUPER_DOCTOR),
   GlobalValidator.validateChangePassword,
   DoctorAuthController.updateLoggedDoctorPassword
 );
 
 router.post("/verify-otp", DoctorAuthController.verifyOtp);
 router.post("/send-otp", GlobalValidator.sendOtpValidator, DoctorAuthController.sendOtp);
-router.post("/log-out", protect, allowedTo(DOCTOR), DoctorAuthController.logOut);
+router.post("/log-out", protect, allowedTo(DOCTOR, SUPER_DOCTOR), DoctorAuthController.logOut);
 
 module.exports = router;
