@@ -3,7 +3,6 @@ const BASE_URL = "/api/v1";
 const ApiError = require("../utils/apiError");
 let userAuthRoutes = require("./userAuth.routes")
 let doctorAuthRoutes = require("./doctorAuth.routes")
-let oAuthRoutes = require("./oAuth.routes")
 let userRoutes = require("./user.routes")
 let doctorRoutes = require("./doctor.routes")
 let appointmentRoutes = require("./appointment.routes")
@@ -17,7 +16,6 @@ let superDoctorRoutes = require("./superDoctor.routes")
 
 appRouter.use(`${BASE_URL}/users/auth`, userAuthRoutes);
 appRouter.use(`${BASE_URL}/doctors/auth`, doctorAuthRoutes);
-appRouter.use(`${BASE_URL}/oauth`, oAuthRoutes);
 appRouter.use(`${BASE_URL}/users`, userRoutes);
 appRouter.use(`${BASE_URL}/doctors`, doctorRoutes);
 appRouter.use(`${BASE_URL}/appointments`, appointmentRoutes);
@@ -27,7 +25,7 @@ appRouter.use(`${BASE_URL}/analysis`, analysisRoutes);
 appRouter.use(`${BASE_URL}/cities`, cityRoutes);
 appRouter.use(`${BASE_URL}/countries`, countryRoutes);
 appRouter.use(`${BASE_URL}/hospitals`, hospitals);
-appRouter.use(`${BASE_URL}/super-doctors`, superDoctorRoutes);
+appRouter.use(`${BASE_URL}/super-doctor`, superDoctorRoutes);
 
 
 appRouter.get("/", (req, res) => {
