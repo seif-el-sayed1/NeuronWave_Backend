@@ -5,6 +5,7 @@ const Doctor = require('../models/doctor.model');
 const User = require('../models/user.model');
 const Analysis = require('../models/analysis.model');
 const Appointment = require('../models/appointment.model');
+const Hospital = require('../models/hospital.model');
 
 class SuperDoctorController {
     // @desc Get all Users
@@ -17,7 +18,7 @@ class SuperDoctorController {
             .search()
             .filter()
             .sort()
-            .limitFields()
+            .cleanResponse()
             .paginate();
         
         const users = await apiFeatures.query;
@@ -40,11 +41,11 @@ class SuperDoctorController {
     getAllDoctors = asyncHandler(async(req, res, next) => {
         const totalDoctors = await Doctor.countDocuments({ isActive: true });
 
-        const apiFeatures = new ApiFeatures(Doctor.find({ isActive: true }), req.query, "Doctor")
+        const apiFeatures = new ApiFeatures(Doctor.find({ isActive: true, role: {$ne: "superDoctor"} }), req.query, "Doctor")
             .search()
             .filter()
             .sort()
-            .limitFields()
+            .cleanResponse()
             .paginate();
         
         const doctors = await apiFeatures.query;
@@ -70,7 +71,7 @@ class SuperDoctorController {
                 status: "accepted",
                 date: { $ne: null },
                 time: { $ne: null }
-            }).populate("doctor", "fullName").populate("patient", "fullName"),
+            }).populate("patient", "fullName").populate("doctor", "fullName"),
             req.query,
             "Appointment"
         )
@@ -85,7 +86,7 @@ class SuperDoctorController {
             Analysis.find({ 
                 status: "approved",
                 consultation: { $exists: true, $ne: null }
-            }).populate("doctor", "fullName").populate("patient", "fullName"),
+            }).populate("patient", "fullName").populate("doctor", "fullName"),
             req.query,
             "Analysis"
         )
@@ -96,11 +97,18 @@ class SuperDoctorController {
 
         const reports = await analysisFeatures.query;
 
-        const totalReports = await Analysis.countDocuments({ 
-            patient: req.user._id,
+        const totalAnalysisReports = await Analysis.countDocuments({ 
             status: "approved",
             consultation: { $exists: true, $ne: null }
         });
+        console.log("totalAnalysisReports:", totalAnalysisReports);
+        const totalAppointmentsReports = await Appointment.countDocuments({ 
+            status: "accepted",
+            date: { $ne: null },
+            time: { $ne: null }
+        });
+        console.log("totalAppointmentsReports:", totalAppointmentsReports);
+        const totalReports = totalAnalysisReports + totalAppointmentsReports;
 
         let combinedResults = [
             ...appointments.map(item => ({ ...item.toObject(), type: 'appointment' })),
@@ -130,7 +138,7 @@ class SuperDoctorController {
     //@access Private
     getAllAppointments = asyncHandler(async(req, res, next) => {
         const totalAppointments = await Appointment.countDocuments({ status: "pending" });
-        const apiFeatures = new ApiFeatures(Appointment.find({ status: "pending" }), req.query, "Appointment")
+        const apiFeatures = new ApiFeatures(Appointment.find({ status: "pending" }).populate("patient", "fullName").populate("doctor", "fullName"), req.query, "Appointment")
             .filter()
             .sort()
             .paginate()
@@ -155,7 +163,7 @@ class SuperDoctorController {
     //@access Private
     getAllAnalysis = asyncHandler(async(req, res, next) => {
         const totalAnalysis = await Analysis.countDocuments({ status: "pending" });
-        const apiFeatures = new ApiFeatures(Analysis.find({ status: "pending" }), req.query, "Analysis")
+        const apiFeatures = new ApiFeatures(Analysis.find({ status: "pending" }).populate("patient", "fullName").populate("doctor", "fullName"), req.query, "Analysis")
             .filter()
             .sort()
             .paginate()
@@ -174,4 +182,113 @@ class SuperDoctorController {
             data: analysis
         });
     })
+
+    //@desc add doctor
+    //@route POST /api/v1/super-doctors/doctors
+    //@access Private
+    addDoctor = asyncHandler(async(req, res, next) => {
+        const doctor = await Doctor.create({
+            ...req.body
+        });
+
+        const hospitalChecks = req.body.hospitals.map(async (ele) => {
+            const existHospital = await Hospital.findById(ele);
+            if (!existHospital) {
+                throw new ApiError(`Hospital with id ${ele} not found`, 404);
+            }
+            
+            existHospital.doctors.push(doctor._id);
+            await existHospital.save();
+            
+            return existHospital;
+        });
+
+        await Promise.all(hospitalChecks);
+
+        res.status(201).json({
+            success: true,
+            message: "Doctor created successfully",
+            data: doctor
+        });
+    });
+
+    //@desc update doctor
+    //@route PUT /api/v1/super-doctors/doctors/:id
+    //@access Private
+    updateDoctor = asyncHandler(async(req, res, next) => {
+        const doctor = await Doctor.findByIdAndUpdate(
+            req.params.id,
+            {
+                ...req.body
+            },
+            { new: true, runValidators: true }
+        );
+        
+        if (!doctor) {
+            return next(new ApiError(`Doctor not found`, 404));
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Doctor updated successfully",
+            data: doctor
+        });
+    })
+
+    //@desc delete doctor
+    //@route DELETE /api/v1/super-doctors/doctors/:id
+    //@access Private
+    deleteDoctor = asyncHandler(async(req, res, next) => {
+        const doctor = await Doctor.findByIdAndDelete(req.params.id);
+
+        if (!doctor) {
+            return next(new ApiError(`Doctor not found`, 404));
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Doctor deleted successfully",
+            data: doctor
+        });
+    })
+
+    //@desc update user
+    //@route PATCH /api/v1/super-doctors/users/:id
+    //@access Private
+    updateUser = asyncHandler(async(req, res, next) => {
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            {
+                ...req.body
+            },
+            { new: true, runValidators: true }
+        );
+
+        if (!user) {
+            return next(new ApiError(`User not found`, 404));
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "User updated successfully",
+            data: user
+        });
+    })
+
+    //@desc delete user
+    //@route DELETE /api/v1/super-doctors/users/:id
+    //@access Private
+    deleteUser = asyncHandler(async(req, res, next) => {
+        const user = await User.findByIdAndDelete(req.params.id);
+
+        if (!user) {
+            return next(new ApiError(`User not found`, 404));
+        }
+        res.status(200).json({
+            success: true,
+            message: "User deleted successfully",
+            data: user
+        });
+    })
 }
+module.exports = new SuperDoctorController();
