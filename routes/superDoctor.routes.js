@@ -1,12 +1,13 @@
 const express = require("express");
-
-const { USER, DOCTOR } = require("../utils/constants");
+const { SUPER_DOCTOR } = require("../utils/constants");
 
 // Middlewares
 const { protect, allowedTo } = require("../middlewares/auth.middleware");
 
 // Classes
 const SuperDoctorController = require("../controllers/superDoctor.controller");
+const UserValidator = require("../validators/user.validator");
+const DoctorValidator = require("../validators/doctor.validator");
 // Router
 const router = express.Router();
 
@@ -18,6 +19,12 @@ router.route("/users")
     );
 
 router.route("/doctors")
+    .post(
+        protect,
+        allowedTo(SUPER_DOCTOR),
+        DoctorValidator.validateAddDoctorBySuperDoctor,
+        SuperDoctorController.addDoctor
+    )
     .get(
         protect,
         allowedTo(SUPER_DOCTOR),
@@ -38,11 +45,35 @@ router.route("/appointments")
         SuperDoctorController.getAllAppointments
     );
 
-router.route("/analyses")
+router.route("/analysis")
     .get(
         protect,
         allowedTo(SUPER_DOCTOR),
-        SuperDoctorController.getAllAnalyses
+        SuperDoctorController.getAllAnalysis
+    );
+
+router.route("/doctors/:id")
+    .patch(
+        protect,
+        allowedTo(SUPER_DOCTOR),
+        DoctorValidator.validateUpdateDoctor,
+        SuperDoctorController.updateDoctor
+    ).delete(
+        protect,
+        allowedTo(SUPER_DOCTOR),
+        SuperDoctorController.deleteDoctor
+    );
+
+router.route("/users/:id")
+    .patch(
+        protect,
+        allowedTo(SUPER_DOCTOR),
+        UserValidator.validateUpdateUser,
+        SuperDoctorController.updateUser
+    ).delete(
+        protect,
+        allowedTo(SUPER_DOCTOR),
+        SuperDoctorController.deleteUser
     );
 
 module.exports = router;
