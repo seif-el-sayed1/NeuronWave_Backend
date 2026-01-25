@@ -10,8 +10,8 @@ class DoctorController {
     //@access Public
     getAllDoctors = asyncHandler(async (req, res, next) => {
         const apiFeatures = new ApiFeatures(Doctor.find({isActive: true}) .select(
-            "fullName phone email createdAt role medicalSpecialty"
-        ), req.query, 'Doctor')
+            "fullName phone email createdAt role medicalSpecialty hospitals"
+        ).populate("hospitals", "hospitalName"), req.query, 'Doctor')
             .search()
             .filter()
             .paginate()
@@ -35,7 +35,7 @@ class DoctorController {
     //@access Private
     getMyProfile = asyncHandler(async (req, res, next) => {
         const user = await Doctor.findById(req.user._id)
-                .select("fullName phone email profilePicture createdAt role medicalSpecialty")
+                .select("fullName phone email profilePicture createdAt role medicalSpecialty hospitals").populate("hospitals", "hospitalName");
         const lang = req.headers.lang || "en";
 
         if (!user) return next(new ApiError(translate("Doctor not found", lang), 404));

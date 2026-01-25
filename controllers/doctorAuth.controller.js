@@ -22,6 +22,7 @@ class DoctorController {
       email: doctor.email, 
       phone: doctor.phone,
       medicalSpecialty: doctor.medicalSpecialty,
+      hospitals: doctor.hospitals,
       createdAt: doctor.createdAt,
       loginType: doctor.loginType,
       notificationToken: doctor.notificationToken
@@ -170,6 +171,7 @@ class DoctorController {
                     email: req.body.email,
                     phone: req.body.phone,
                     medicalSpecialty: req.body.medicalSpecialty,
+                    hospitals: req.body.hospitals,
                     loginType: req.body.loginType,
                     notificationToken: req.body.notificationToken,
                     password: req.body.password
