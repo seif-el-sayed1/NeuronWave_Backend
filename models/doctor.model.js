@@ -47,8 +47,15 @@ const doctorSchema = mongoose.Schema(
         type: String,
         enum: MEDICAL_SPECIALTIES,
     },
+    medicalNumber: { // NW-MED-492381
+      type: String,
+    },
     isSuperDoctor: {
       type: Boolean,
+    },
+    registerType: {
+      type: String,
+      default: "byApp"
     },
     hospitals: [
       {
@@ -113,6 +120,13 @@ doctorSchema.index(
   {
     unique: true, // Enforce uniqueness
     partialFilterExpression: { email: { $exists: true } } // Apply uniqueness only when `email` is not null
+  }
+);
+doctorSchema.index(
+  { medicalNumber: 1 }, // The field to index
+  {
+    unique: true, // Enforce uniqueness
+    partialFilterExpression: { medicalNumber: { $exists: true } } // Apply uniqueness only when `medicalNumber` is not null
   }
 );
 
