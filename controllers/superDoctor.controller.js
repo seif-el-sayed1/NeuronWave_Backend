@@ -6,6 +6,7 @@ const User = require('../models/user.model');
 const Analysis = require('../models/analysis.model');
 const Appointment = require('../models/appointment.model');
 const Hospital = require('../models/hospital.model');
+const { translate } = require('../utils/translate');
 
 class SuperDoctorController {
     // @desc Get all Users
@@ -194,7 +195,7 @@ class SuperDoctorController {
         const hospitalChecks = req.body.hospitals.map(async (ele) => {
             const existHospital = await Hospital.findById(ele);
             if (!existHospital) {
-                throw new ApiError(`Hospital with id ${ele} not found`, 404);
+                throw new ApiError(translate("Hospital not found", req.headers.lang), 404);
             }
             
             existHospital.doctors.push(doctor._id);
@@ -225,7 +226,7 @@ class SuperDoctorController {
         );
         
         if (!doctor) {
-            return next(new ApiError(`Doctor not found`, 404));
+            return next(new ApiError(translate("Doctor not found", req.headers.lang), 404));
         }
 
         res.status(200).json({
@@ -242,7 +243,7 @@ class SuperDoctorController {
         const doctor = await Doctor.findByIdAndDelete(req.params.id);
 
         if (!doctor) {
-            return next(new ApiError(`Doctor not found`, 404));
+            return next(new ApiError(translate("Doctor not found", req.headers.lang), 404));
         }
 
         res.status(200).json({
@@ -265,7 +266,7 @@ class SuperDoctorController {
         );
 
         if (!user) {
-            return next(new ApiError(`User not found`, 404));
+            return next(new ApiError(translate("User not found", req.headers.lang), 404));
         }
 
         res.status(200).json({
@@ -282,7 +283,7 @@ class SuperDoctorController {
         const user = await User.findByIdAndDelete(req.params.id);
 
         if (!user) {
-            return next(new ApiError(`User not found`, 404));
+            return next(new ApiError(translate("User not found", req.headers.lang), 404));
         }
         res.status(200).json({
             success: true,
@@ -290,5 +291,91 @@ class SuperDoctorController {
             data: user
         });
     })
+
+    //@desc block doctor
+    //@route PATCH /api/v1/super-doctors/doctors/:id/block
+    //@access Private
+    blockDoctor = asyncHandler(async(req, res, next) => {
+        const doctor = await Doctor.findByIdAndUpdate(
+            req.params.id,
+            { isBlocked: true },
+            { new: true, runValidators: true }
+        );
+
+        if (!doctor) {
+            return next(new ApiError(translate("Doctor not found", req.headers.lang), 404));
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Doctor blocked successfully",
+            data: doctor
+        });
+    })
+
+    //@desc unblock doctor
+    //@route PATCH /api/v1/super-doctors/doctors/:id/unblock
+    //@access Private
+    unblockDoctor = asyncHandler(async(req, res, next) => {
+        const doctor = await Doctor.findByIdAndUpdate(
+            req.params.id,
+            { isBlocked: false },
+            { new: true, runValidators: true }
+        );
+
+        if (!doctor) {
+            return next(new ApiError(translate("Doctor not found", req.headers.lang), 404));
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Doctor unblocked successfully",
+            data: doctor
+        });
+    })
+
+
+    //@desc block user
+    //@route PATCH /api/v1/super-doctors/users/:id/block
+    //@access Private
+    blockUser = asyncHandler(async(req, res, next) => {
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            { isBlocked: true },
+            { new: true, runValidators: true }
+        );
+
+        if (!user) {
+            return next(new ApiError(translate("User not found", req.headers.lang), 404));
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "User blocked successfully",
+            data: user
+        });
+    })
+
+    //@desc unblock user
+    //@route PATCH /api/v1/super-doctors/users/:id/unblock
+    //@access Private
+    unblockUser = asyncHandler(async(req, res, next) => {
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            { isBlocked: false },
+            { new: true, runValidators: true }
+        );
+
+        if (!user) {
+            return next(new ApiError(translate("User not found", req.headers.lang), 404));
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "User unblocked successfully",
+            data: user
+        });
+    })
+
 }
 module.exports = new SuperDoctorController();
