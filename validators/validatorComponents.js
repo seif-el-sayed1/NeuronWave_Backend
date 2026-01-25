@@ -25,6 +25,18 @@ exports.objectIdValidator = (value, helpers) => {
   return value;
 };
 
+exports.medicalNumberValidator = (value, helpers) => {
+  const medicalNumberPattern = /^NW-MED-\d{6}$/;
+  if (!medicalNumberPattern.test(value)) {
+    return helpers.message(
+      translate(
+        "Invalid medical number format", // NW-MED-492381
+        helpers.prefs.context.lang || "en"
+      )
+    );
+  }
+  return value;
+};
 
 exports.phoneNumberValidator = (value, helpers) => {
   const phonePattern = /^0\d{10}$/;
