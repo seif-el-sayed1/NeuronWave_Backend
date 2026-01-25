@@ -25,7 +25,7 @@ class PatientsController {
         const baseQuery = User.find({ isActive: true })
             .select(
                 "fullName phone email lastVisit createdAt notes address age gender emergencyContact medicalHistory diagnosis registerType doctor"
-            )
+            ).populate("doctor", "fullName")
             .sort({ lastVisit: -1, createdAt: -1 }); 
 
         const apiFeatures = new ApiFeatures(baseQuery, req.query, 'User')
