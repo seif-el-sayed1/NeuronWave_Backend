@@ -21,6 +21,7 @@ const ar = {
   "Invalid reset code": "رمز إعادة التعيين غير صالح",
   "User is already deactivated" : "المستخدم معطل بالفعل",
   "Doctor is already deactivated" : "الدكتور معطل بالفعل",
+  "Medical Number is required" : "رقم الهوية الطبية مطلوب",
   // user validator
   "Full Name is required" : "اسم المستخدم مطلوب",
   "Email is required" : "الايميل مطلوب",
@@ -154,6 +155,14 @@ const ar = {
   "You have a new analysis request" : "لديك طلب تحليل جديد",
   "You have a new analysis report" : "لديك تقرير تحليل جديد",
   "wrote you a consultation." : "كتب لك استشارة.",
+  // hospital
+  "Hospital not found": "المستشفى غير موجوده",
+  // country, city
+  "Country not found": "البلد غير موجود",
+  "City not found": "المدينة غير موجودة",
+  // super doctor
+  "Invalid medical number format" : "تنسيق الرقم طبي غير صالح",
+  "medicalNumber is already used" : "الرقم الطبي مستخدم بالفعل"
 };
 
 function translateNumbers(input, lang = "en") {
