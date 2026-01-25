@@ -4,6 +4,8 @@ const crypto = require("crypto");
 const Doctor = require("../models/doctor.model");
 const Appointment = require("../models/appointment.model");
 const Analysis = require("../models/analysis.model");
+const Hospital = require("../models/hospital.model");
+const Notification = require("../models/notification.model");
 const ApiError = require("../utils/ApiError");
 const { translate } = require("../utils/translation");
 const { generateCode, hashCode } = require("../utils/generateCode");
@@ -78,7 +80,7 @@ class DoctorController {
         if (req.body.notificationToken) doctor.notificationToken = req.body.notificationToken;
         await doctor.save();
 
-        const [appointmentsReports, analysesReports, pendingAnalyses] = await Promise.all([
+        const [appointmentsReports, analysesReports, pendingAnalyses, notifications] = await Promise.all([
             Appointment.find({
                 doctor: doctor._id,
                 status: "accepted",
@@ -93,6 +95,10 @@ class DoctorController {
             Analysis.find({
                 doctor: doctor._id,
                 status: "pending"
+            }),
+            Notification.find({
+                user: doctor._id,
+                seen: false
             })
         ]);
 
@@ -109,6 +115,7 @@ class DoctorController {
             success: true,
             message,
             totalReports,
+            totalUnseenNotifications: notifications.length,
             pendingAnalyses: pendingAnalyses.length,
             data: {
                 ...this.#getDoctorData(responseDoctor, lang),
@@ -269,6 +276,24 @@ class DoctorController {
 
     const token = await doctor.generateToken();
 
+    if (doctor.hospitals && doctor.hospitals.length > 0) {
+        const hospitalChecks = doctor.hospitals.map(async (hospitalId) => {
+            const existHospital = await Hospital.findById(hospitalId);
+            if (!existHospital) {
+                throw new ApiError(translate("Hospital not found", lang), 404);
+            }
+            
+            if (!existHospital.doctors.includes(doctor._id)) {
+                existHospital.doctors.push(doctor._id);
+                await existHospital.save();
+            }
+            
+            return existHospital;
+        });
+
+        await Promise.all(hospitalChecks);
+    }
+
     res.status(200).json({
       success: true,
       message: "Account verified successfully", 
@@ -277,7 +302,7 @@ class DoctorController {
         ...token
       }
     });
-  });
+});
 
   // @desc    Update logged doctor password
   // @route   PATCH /doctors/auth/change-password
