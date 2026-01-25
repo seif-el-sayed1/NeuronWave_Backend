@@ -90,7 +90,6 @@ class UserValidator {
       }),
       dateOfBirth: Joi.date().optional(),
       email: Joi.string().email().optional(),
-      age: Joi.number().min(0).required(),
       gender: Joi.string().valid("male", "female", "ذكر", "انثي").optional(),
       emergencyContact: Joi.string().custom(phoneNumberValidator).optional().messages({
         "any.required": "Emergency contact number is required",
