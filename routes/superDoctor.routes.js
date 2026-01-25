@@ -52,6 +52,35 @@ router.route("/analysis")
         SuperDoctorController.getAllAnalysis
     );
 
+
+router.route("/doctors/:id/block")
+    .patch(
+        protect,
+        allowedTo(SUPER_DOCTOR),
+        SuperDoctorController.blockDoctor
+    );
+
+router.route("/doctors/:id/unblock")
+    .patch(
+        protect,
+        allowedTo(SUPER_DOCTOR),
+        SuperDoctorController.unblockDoctor
+    );
+
+router.route("/users/:id/block")
+    .patch(
+        protect,
+        allowedTo(SUPER_DOCTOR),
+        SuperDoctorController.blockUser
+    );
+
+router.route("/users/:id/unblock")
+    .patch(
+        protect,
+        allowedTo(SUPER_DOCTOR),
+        SuperDoctorController.unblockUser
+    );
+
 router.route("/doctors/:id")
     .patch(
         protect,
