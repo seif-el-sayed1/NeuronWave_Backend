@@ -1,6 +1,6 @@
 const appRouter = require("express").Router();
 const BASE_URL = "/api/v1";
-const ApiError = require("../utils/apiError");
+const ApiError = require("../utils/ApiError");
 let userAuthRoutes = require("./userAuth.routes")
 let doctorAuthRoutes = require("./doctorAuth.routes")
 let userRoutes = require("./user.routes")
