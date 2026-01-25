@@ -1,4 +1,4 @@
-const ApiFeatures = require('../utils/apiFeatures');
+const ApiFeatures = require('../utils/ApiFeatures');
 const asyncHandler = require('express-async-handler');
 const ApiError = require('../utils/ApiError');
 const Doctor = require('../models/doctor.model');

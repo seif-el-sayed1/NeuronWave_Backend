@@ -1,6 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../utils/ApiError");
-const ApiFeatures = require("../utils/apiFeatures");
+const ApiFeatures = require("../utils/ApiFeatures");
 const Hospital = require("../models/hospital.model");
 const Country = require("../models/country.model");
 const City = require("../models/city.model");
