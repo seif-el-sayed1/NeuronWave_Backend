@@ -3,10 +3,13 @@ const asyncHandler = require("express-async-handler");
 const joiErrorHandler = require("./joiErrorHandler");
 const {
   phoneNumberValidator,
+  objectIdValidator,
+  medicalNumberValidator,
 } = require("./validatorComponents");
 const ApiError = require("../utils/ApiError");
 const { translate } = require("../utils/translation");
 const Doctor = require("../models/doctor.model");
+const Hospital = require("../models/hospital.model");
 const {
   GENDER_LIST_EN,
   GENDER_LIST_AR,
@@ -51,6 +54,12 @@ class DoctorValidator {
         "array.includes": "Invalid Medical Specialty",
       }),
 
+      medicalNumber: Joi.string().custom(medicalNumberValidator).required().messages({
+        "any.required": "Medical Number is required",
+      }),
+
+      hospitals: Joi.array().items(Joi.custom(objectIdValidator)).required(),
+
       gender: Joi.string().valid("male", "female", "ذكر", "انثي").required(),
       
       loginType: Joi.string().optional(),
@@ -74,6 +83,17 @@ class DoctorValidator {
       notificationToken: Joi.string().optional(),
     });
 
+    for (let i = 0; i < req.body.hospitals?.length; i++) {
+      const existHospital = await Hospital.findById(req.body.hospitals[i]);
+      if (!existHospital) {
+        return next(
+          new ApiError(
+            translate("Hospital not found", req.headers.lang),
+            404
+          )
+        );
+      }
+    }
 
     joiErrorHandler(schema, req);
     checkIfPhoneStartsWithPlus2(req);
@@ -89,15 +109,29 @@ class DoctorValidator {
         "any.required": "Phone number is required",
       }),
       email: Joi.string().email().optional(),
-      gender: Joi.string().valid("male", "female", "ذكر", "انثي").required(),
+      gender: Joi.string().valid("male", "female", "ذكر", "انثي").optional(),
 
       medicalSpecialty: Joi.valid(...MEDICAL_SPECIALTIES).optional().messages({
         "array.includes": "Invalid Medical Specialty",
       }),
+
+      hospitals: Joi.array().items(Joi.custom(objectIdValidator)).optional(),
       
       // Validate location using the defined schema
     });
     joiErrorHandler(schema, req);
+
+    for (let i = 0; i < req.body.hospitals?.length; i++) {
+      const existHospital = await Hospital.findById(req.body.hospitals[i]);
+      if (!existHospital) {
+        return next(
+          new ApiError(
+            translate("Hospital not found", req.headers.lang),
+            404
+          )
+        );
+      }
+    }
 
     checkIfPhoneStartsWithPlus2(req);
     let { phone, email } = req.body;
@@ -241,6 +275,47 @@ class DoctorValidator {
       req.requestedDoctor = doctor;
       next();
     });
+
+    validateAddDoctorBySuperDoctor = asyncHandler(async(req, res, next) => {
+      req.body.registerType = "bySuperDoctor"
+      const schema = Joi.object({
+        fullName: Joi.string()
+          .when("loginType", {
+            is: Joi.valid(...LOGIN_TYPE_PLATFORM_LIST),
+            then: Joi.optional().allow(""),
+            otherwise: Joi.required(),
+          })
+          .min(2)
+          .max(32)
+          .messages({ "any.required": "Full Name is required" }),
+
+        email: Joi.string().email().required().messages({
+          "any.required": "Email is required",
+          "string.email": "Invalid Email Address",
+          }),
+
+        phone: Joi.string().custom(phoneNumberValidator).required().messages({
+          "any.required": "Phone is required",
+          "string.pattern.base": "Invalid Phone Number",
+        }),
+
+        medicalSpecialty: Joi.string().valid(...MEDICAL_SPECIALTIES).required().messages({
+          "any.required": "Medical Specialty is required",
+          "array.includes": "Invalid Medical Specialty",
+        }),
+        medicalNumber: Joi.string().custom(medicalNumberValidator).required().messages({
+          "any.required": "Medical Number is required",
+        }),
+
+        hospitals: Joi.array().items(Joi.custom(objectIdValidator)).required(),
+
+        gender: Joi.string().valid("male", "female", "ذكر", "انثي").required(),
+
+      })
+
+      joiErrorHandler(schema, req);
+      next();
+    })
 
 
 }
