@@ -41,10 +41,6 @@ const notificationSchema = mongoose.Schema({
 });
 
 // Indexing for performance
-notificationSchema.index({ global: 1 });
-notificationSchema.index({ users: 1 });
-notificationSchema.index({ createdAt: -1 });
-notificationSchema.index({ scheduleTime: 1 });
-notificationSchema.index({ sentBy: 1 });
+notificationSchema.index({ user: 1, seen: 1 });
 
 module.exports = mongoose.model("Notification", notificationSchema);
