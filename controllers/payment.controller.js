@@ -101,6 +101,84 @@ class PaymentClass {
     }
   }
 
+  async callBack(req, res) {
+    try {
+      const receivedHmac = req.headers["x-hmac-sha512"];
+      if (!receivedHmac) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Missing HMAC header" });
+      }
+
+      const hmac = crypto.createHmac("sha512", process.env.PAYMOB_HMAC_SECRET);
+      hmac.update(JSON.stringify(req.body));
+      const calculatedHmac = hmac.digest("hex");
+
+      if (calculatedHmac !== receivedHmac) {
+        return res
+          .status(403)
+          .json({ success: false, message: "Invalid HMAC" });
+      }
+
+      const intentionId = req.body?.intention?.id;
+      const transactionData = req.body?.transaction;
+
+      if (!intentionId || !transactionData) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid callback data" });
+      }
+
+      const order_id = intentionId.split("_")[2];
+
+      let status = "failed";
+      if (transactionData.success) status = "succeeded";
+      else if (transactionData.pending) status = "pending";
+
+      await Payment.updateOne(
+        { orderCode: order_id },
+        {
+          $set: {
+            success: transactionData.success,
+            pending: transactionData.pending,
+            cardNum: transactionData.data?.card_num || null,
+            cardType: transactionData.data?.card_type || null,
+            currency: transactionData.currency || null,
+            status,
+            updatedAt: Date.now(),
+          },
+        },
+      );
+
+      const payment= await Payment.findOne({ orderCode: order_id });
+      
+      if (payment.success == true) {
+        const appointment = await Appointment.findById(payment.appointment);
+        if (!appointment) {
+          return res.status(404).json({
+            success: false,
+            message: "Associated appointment not found",
+          });
+        }
+        appointment.isPaid = true;
+        appointment.paymentWay = "online";
+        await appointment.save();
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Callback received and processed successfully",
+        status,
+      });
+    } catch (error) {
+      console.error("Error in Payment Callback:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error processing callback",
+      });
+    }
+  }
+
 }
 
 module.exports = new PaymentClass();
