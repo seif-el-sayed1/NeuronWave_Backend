@@ -59,6 +59,14 @@ router
         AppointmentController.generateAppointmentReport
     )
 
+router
+    .route("/:id/payment")
+    .post(
+        protect,
+        allowedTo(USER),
+        AppointmentController.appointmentPayment
+    );
+
 router.route("/:id")
     .patch( 
         protect, 
