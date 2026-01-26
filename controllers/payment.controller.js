@@ -135,7 +135,7 @@ class PaymentClass {
       if (transactionData.success) status = "succeeded";
       else if (transactionData.pending) status = "pending";
 
-      await Payment.updateOne(
+      const payment = await Payment.findOneAndUpdate(
         { orderCode: order_id },
         {
           $set: {
@@ -148,11 +148,18 @@ class PaymentClass {
             updatedAt: Date.now(),
           },
         },
+        { new: true } 
       );
 
-      const payment= await Payment.findOne({ orderCode: order_id });
-      
-      if (payment.success == true) {
+      if (!payment) {
+        console.error(`Payment not found for order_id: ${order_id}`);
+        return res.status(404).json({
+          success: false,
+          message: "Payment not found with this order code",
+        });
+      }
+
+      if (payment.success === true) {
         const appointment = await Appointment.findById(payment.appointment);
         if (!appointment) {
           return res.status(404).json({
@@ -163,6 +170,7 @@ class PaymentClass {
         appointment.isPaid = true;
         appointment.paymentWay = "online";
         await appointment.save();
+        
       }
 
       return res.status(200).json({
@@ -175,10 +183,10 @@ class PaymentClass {
       return res.status(500).json({
         success: false,
         message: "Error processing callback",
+        error: error.message,
       });
     }
   }
-
 }
 
 module.exports = new PaymentClass();
