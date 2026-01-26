@@ -34,6 +34,15 @@ const appointmentSchema = new mongoose.Schema({
     notes: {
         type: String,
     },
+    isPaid: {
+        type: Boolean,
+        default: false
+    },
+    paymentWay: {
+        type: String,
+        enum: ['online', 'cash'],
+        default: 'cash'
+    }
 
 }, { timestamps: true });
 
