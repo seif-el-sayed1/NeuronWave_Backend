@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../utils/ApiError");
 const ApiFeatures = require("../utils/ApiFeatures");
@@ -5,6 +6,7 @@ const Appointment = require("../models/appointment.model");
 const User = require("../models/user.model");
 const Doctor = require("../models/doctor.model");
 const Notification = require("../models/notification.model");
+const PaymentController = require("./payment.controller");
 const { USER, APPOINTMENT_STATUS, DOCTOR } = require("../utils/constants")
 const { sendNotification } = require("../utils/sendNotification");
 const { translate } = require("../utils/translation");
@@ -237,12 +239,6 @@ class AppointmentController {
             return next(new ApiError(translate("Appointment not found", lang), 404));
         }
 
-        if (appointment.status !== "pending") {
-            return next(
-                new ApiError(translate("Only pending appointments can be changed", lang), 400)
-            );
-        }
-
         if (req.user.role === USER && status !== "canceled") {
             return next(
                 new ApiError(
@@ -263,13 +259,6 @@ class AppointmentController {
                     403
                 )
             );
-        }
-
-        if (appointment.status === status) {
-            return res.status(400).json({
-                success: false,
-                message: `Appointment status is already ${status}`
-            });
         }
 
         if (status !== "rejected" && rejectionReason) {
@@ -426,6 +415,52 @@ class AppointmentController {
         });
     })    
 
+    //@desc appointment payment
+    //@route POST /appointments/:id/payment
+    //@access Private
+    appointmentPayment = async (req, res, next) => {
+        let session = await mongoose.startSession();
+        try {
+            await session.startTransaction();
+            const appointment = await Appointment.findById(req.params.id);
+            if (!appointment) {
+                return next(new ApiError("Appointment not found", 404));
+            }
+            if (appointment.isPaid) {
+                return next(new ApiError("Appointment is already paid", 400));
+            }
+            if (appointment.status !== "accepted") {
+                return next(new ApiError("Only accepted appointments can be paid for", 400));
+            }
+            // Create client secret key
+            PaymentController
+                .createClientSecretKey(appointment, req.user)
+                .then(async (data) => {
+                    // Append Secrent Client key to URL and send response
+                    const publicKey = process.env.PAYMOB_PUBLIC_KEY;
+
+                    data.paymentKey =
+                        `https://accept.paymob.com/unifiedcheckout/?publicKey=${publicKey}&clientSecret=` +
+                        data.clientSecret;
+
+                    res.status(200).json({
+                        success: true,
+                        message: "Payment key created successfully",
+                        data: data
+                    });
+                })
+                .catch((err) => {
+                    next(err);
+                });
+
+            
+        } catch (err) {
+            await session.abortTransaction();
+            next(err);
+        } finally {
+            session.endSession();
+        }
+    }
 
 }
 
