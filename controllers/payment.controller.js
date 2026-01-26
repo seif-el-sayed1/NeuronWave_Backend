@@ -7,7 +7,6 @@ class PaymentClass {
   async createClientSecretKey(appointment, user) {
     return new Promise(async (resolve, reject) => {
       try {
-        console.log("In Create Client Key");
         const amount = 100 * 100;
         let items = [
           {
@@ -53,7 +52,6 @@ class PaymentClass {
             ee: 22,
           },
         };
-
         const secretKey = process.env.PAYMOB_SECRET_KEY;
         const response = await axios.post(
           "https://accept.paymob.com/v1/intention/",
@@ -62,7 +60,6 @@ class PaymentClass {
             headers: { Authorization: `Token ${secretKey}` },
           },
         );
-
         /*
           Intention API Changes order_id, so that I've figured a way to store the order_id
           to be shared between intention response and request body of the callback.
@@ -76,13 +73,32 @@ class PaymentClass {
           status: "pending",
           clientSecret: response.data.client_secret, // You might update this based on payment status
         });
-        
         // Resolve the promise with the necessary data
         resolve({ transaction, clientSecret: response.data.client_secret });
       } catch (error) {
         reject(error);
       }
     });
+  }
+
+  async processed(req, res) {
+    try {
+      res.status(201).json({ data: req.data, message: "processed" });
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
+  async response(req, res) {
+    try {
+      res.status(201).json({
+        data: req.data,
+        message: "response",
+        success: req.query.success,
+      });
+    } catch (error) {
+      res.status(400).json({ message: error.message });
+    }
   }
 
 }
