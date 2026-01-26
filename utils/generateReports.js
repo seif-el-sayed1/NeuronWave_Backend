@@ -12,6 +12,16 @@ const camelCaseToNormal = (text) => {
     .replace(/([A-Z])/g, ' $1')   
     .replace(/^./, c => c.toUpperCase());
 };
+// Helper function to process Arabic text for PDF (same logic as fixArabic)
+const processArabicText = (text) => {
+  const hasArabic = /[\u0600-\u06FF]/.test(text);
+  if (!hasArabic) {
+    return text;
+  }
+  
+  // Simply reverse word order, don't reverse characters
+  return text.split(" ").reverse().join(" ");
+};
 
 const generateAnalysisPDF = async (analysisId) => {
     const analysis = await Analysis.findById(analysisId)
@@ -147,13 +157,11 @@ const generateAnalysisPDF = async (analysisId) => {
         const resultValueX = boxX + 180;
         let currentY = resultBoxY + padding + 25;
 
-        // Loop through hands
         hands.forEach(hand => {
             if (resultData[hand]) {
                 const handData = resultData[hand];
                 const handName = hand === 'leftHand' ? 'Left Hand' : 'Right Hand';
                 
-                // Hand Title
                 doc.fontSize(10)
                     .fillColor("#111")
                     .font("Helvetica-Bold")
@@ -161,7 +169,6 @@ const generateAnalysisPDF = async (analysisId) => {
                 
                 currentY += 16;
 
-                // Prediction
                 doc.fontSize(9)
                     .fillColor("#555")
                     .font("Helvetica-Bold")
@@ -176,7 +183,6 @@ const generateAnalysisPDF = async (analysisId) => {
 
                 currentY += 16;
 
-                // Probability
                 doc.fillColor("#555")
                     .font("Helvetica-Bold")
                     .text("Probability:", resultLabelX + 15, currentY);
@@ -204,13 +210,15 @@ const generateAnalysisPDF = async (analysisId) => {
     const padding = 15;
     const textWidth = boxWidth - padding * 2;
 
+    // Process Arabic text for proper RTL display
+    const processedText = hasArabic ? processArabicText(consultationText) : consultationText;
+
     doc.font(hasArabic && fs.existsSync(ARABIC_FONT) ? "ArabicFont" : "Helvetica").fontSize(10);
 
-    const consultationHeight = doc.heightOfString(consultationText, {
+    const consultationHeight = doc.heightOfString(processedText, {
         width: textWidth,
         align: hasArabic ? "right" : "justify",
-        lineGap: 4,
-        features: hasArabic ? ["rlig", "calt"] : undefined 
+        lineGap: 4
     });
 
     const titleHeight = 25; 
@@ -232,17 +240,16 @@ const generateAnalysisPDF = async (analysisId) => {
         doc.font("ArabicFont")
             .fontSize(10)
             .fillColor("#333")
-            .text(consultationText, boxX + padding, textStartY, {
+            .text(processedText, boxX + padding, textStartY, {
                 width: textWidth,
                 align: "right",
-                direction: "rtl",
                 lineGap: 4
             });
     } else {
         doc.font("Helvetica")
             .fontSize(10)
             .fillColor("#333")
-            .text(consultationText, boxX + padding, textStartY, {
+            .text(processedText, boxX + padding, textStartY, {
                 width: textWidth,
                 align: "justify",
                 lineGap: 4
@@ -386,10 +393,13 @@ const generateAppointmentPDF = async (appointmentId) => {
         const textWidth = boxWidth - padding * 2;
 
         const hasArabic = /[\u0600-\u06FF]/.test(appointment.notes);
+        
+        // Process Arabic text for proper RTL display
+        const processedNotes = hasArabic ? processArabicText(appointment.notes) : appointment.notes;
 
         doc.font(hasArabic && fs.existsSync(ARABIC_FONT) ? "ArabicFont" : "Helvetica").fontSize(12);
 
-        const notesHeight = doc.heightOfString(appointment.notes, {
+        const notesHeight = doc.heightOfString(processedNotes, {
             width: textWidth,
             align: hasArabic ? "right" : "justify",
             lineGap: 6
@@ -413,17 +423,16 @@ const generateAppointmentPDF = async (appointmentId) => {
             doc.font("ArabicFont")
                 .fontSize(12)
                 .fillColor("#333")
-                .text(appointment.notes, boxX + padding, textStartY, {
+                .text(processedNotes, boxX + padding, textStartY, {
                     width: textWidth,
                     align: "right",
-                    direction: "rtl",
                     lineGap: 6
                 });
         } else {
             doc.font("Helvetica")
                 .fontSize(12)
                 .fillColor("#333")
-                .text(appointment.notes, boxX + padding, textStartY, {
+                .text(processedNotes, boxX + padding, textStartY, {
                     width: textWidth,
                     align: "justify",
                     lineGap: 6
@@ -440,10 +449,13 @@ const generateAppointmentPDF = async (appointmentId) => {
         const textWidth = boxWidth - padding * 2;
 
         const hasArabic = /[\u0600-\u06FF]/.test(appointment.rejectionReason);
+        
+        // Process Arabic text for proper RTL display
+        const processedReason = hasArabic ? processArabicText(appointment.rejectionReason) : appointment.rejectionReason;
 
         doc.font(hasArabic && fs.existsSync(ARABIC_FONT) ? "ArabicFont" : "Helvetica").fontSize(12);
 
-        const reasonHeight = doc.heightOfString(appointment.rejectionReason, {
+        const reasonHeight = doc.heightOfString(processedReason, {
             width: textWidth,
             align: hasArabic ? "right" : "justify",
             lineGap: 6
@@ -467,17 +479,16 @@ const generateAppointmentPDF = async (appointmentId) => {
             doc.font("ArabicFont")
                 .fontSize(12)
                 .fillColor("#333")
-                .text(appointment.rejectionReason, boxX + padding, textStartY, {
+                .text(processedReason, boxX + padding, textStartY, {
                     width: textWidth,
                     align: "right",
-                    direction: "rtl",
                     lineGap: 6
                 });
         } else {
             doc.font("Helvetica")
                 .fontSize(12)
                 .fillColor("#333")
-                .text(appointment.rejectionReason, boxX + padding, textStartY, {
+                .text(processedReason, boxX + padding, textStartY, {
                     width: textWidth,
                     align: "justify",
                     lineGap: 6
@@ -535,7 +546,4 @@ const generateAppointmentPDF = async (appointmentId) => {
     });
 };
 
-module.exports = {
-    generateAnalysisPDF,
-    generateAppointmentPDF 
-};
+module.exports = { generateAnalysisPDF, generateAppointmentPDF };
