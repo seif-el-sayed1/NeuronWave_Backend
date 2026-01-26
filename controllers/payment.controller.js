@@ -119,15 +119,30 @@ class PaymentClass {
       return res.status(400).json({ success: false, message: "Invalid callback data" });
     }
 
-    const order_id = transactionData.order.id;
-    console.log("🔍 Order ID:", order_id);
+    const nextPaymentIntention = transactionData.payment_key_claims?.next_payment_intention;
+    
+    console.log("🔍 Next Payment Intention:", nextPaymentIntention);
+
+    let order_id;
+    if (nextPaymentIntention) {
+      order_id = nextPaymentIntention.split("_")[2];
+    }
+
+    console.log("🔍 Extracted Order ID:", order_id);
+
+    if (!order_id) {
+      console.error("❌ Could not extract order ID from intention");
+      return res.status(400).json({ success: false, message: "Invalid order data" });
+    }
 
     let status = "failed";
     if (transactionData.success) status = "succeeded";
     else if (transactionData.pending) status = "pending";
 
+    console.log("📊 Payment Status:", status);
+
     const payment = await Payment.findOneAndUpdate(
-      { orderCode: order_id.toString() }, 
+      { orderCode: order_id },
       {
         $set: {
           success: transactionData.success,
@@ -144,6 +159,10 @@ class PaymentClass {
 
     if (!payment) {
       console.error(`❌ Payment not found for order_id: ${order_id}`);
+      
+      const allPayments = await Payment.find({}).select('orderCode').limit(10);
+      console.log("📋 Available order codes:", allPayments.map(p => p.orderCode));
+      
       return res.status(404).json({
         success: false,
         message: "Payment not found",
@@ -154,12 +173,21 @@ class PaymentClass {
 
     if (payment.success === true) {
       const appointment = await Appointment.findById(payment.appointment);
-      if (appointment) {
-        appointment.isPaid = true;
-        appointment.paymentWay = "online";
-        await appointment.save();
-        console.log("✅ Appointment updated:", appointment._id);
+      if (!appointment) {
+        console.error("❌ Appointment not found");
+        return res.status(404).json({
+          success: false,
+          message: "Appointment not found",
+        });
       }
+
+      console.log("📅 Before update - isPaid:", appointment.isPaid);
+      
+      appointment.isPaid = true;
+      appointment.paymentWay = "online";
+      await appointment.save();
+
+      console.log("✅ After update - isPaid:", appointment.isPaid);
     }
 
     return res.status(200).json({
@@ -169,6 +197,7 @@ class PaymentClass {
     });
   } catch (error) {
     console.error("❌ ERROR:", error);
+    console.error("Stack:", error.stack);
     return res.status(500).json({
       success: false,
       message: error.message,
