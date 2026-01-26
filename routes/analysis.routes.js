@@ -2,7 +2,7 @@ const express = require("express");
 
 // middlewares
 const { protect, allowedTo } = require("../middlewares/auth.middleware");
-const { USER, DOCTOR } = require("../utils/constants");
+const { USER, DOCTOR, SUPER_DOCTOR } = require("../utils/constants");
 const upload = require("../middlewares/upload.middleware");
 
 // controller
@@ -15,7 +15,7 @@ router
     .route("/")
     .post(
         protect,
-        allowedTo(DOCTOR),
+        allowedTo(DOCTOR, SUPER_DOCTOR),
         upload.uploadMedia,
         AnalysisController.processAnalysisByDoctor
     );
@@ -24,7 +24,7 @@ router
     .route("/doctor")
     .get(
         protect,
-        allowedTo(DOCTOR),
+        allowedTo(DOCTOR, SUPER_DOCTOR),
         AnalysisController.getDoctorAnalysis
     );
 
@@ -48,7 +48,7 @@ router
     .route("/doctor/reports")
     .get(
         protect,
-        allowedTo(DOCTOR),
+        allowedTo(DOCTOR, SUPER_DOCTOR),
         AnalysisController.getDoctorReports
     );
 
@@ -65,7 +65,7 @@ router
     .route("/:id/consultation")
     .patch(
         protect,
-        allowedTo(DOCTOR),
+        allowedTo(DOCTOR, SUPER_DOCTOR),
         AnalysisController.writeDoctorConsultation
     );
 
@@ -73,7 +73,7 @@ router
     .route("/:id")
     .patch(
         protect,
-        allowedTo(DOCTOR),
+        allowedTo(DOCTOR, SUPER_DOCTOR),
         upload.uploadMedia,
         AnalysisController.approvedRejectAnalysis
     );
@@ -82,7 +82,7 @@ router
     .route("/:id/reports")
     .get(
         protect,
-        allowedTo(USER, DOCTOR),
+        allowedTo(USER, DOCTOR, SUPER_DOCTOR),
         AnalysisController.generateAnalysisReport
     )
 
