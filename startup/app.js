@@ -6,7 +6,7 @@ const expressWinston = require("express-winston");
 const { transports, format } = require("winston");
 const AppRoutes = require("../routes/index.routes");
 const globalError = require("../middlewares/error.middleware");
-const passport = require("../config/passport.config");
+// const passport = require("../config/passport.config");
 
 module.exports = (app) => {
   // Middlewares
@@ -17,7 +17,7 @@ module.exports = (app) => {
   app.use(express.urlencoded({ extended: true, limit: "25kb" }));
   
   // Initialize Passport
-  app.use(passport.initialize());
+  // app.use(passport.initialize());
   
   app.use(
     "/uploads",
