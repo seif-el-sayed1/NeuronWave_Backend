@@ -1,6 +1,6 @@
 const express = require("express");
 
-const { USER, DOCTOR } = require("../utils/constants");
+const { USER, DOCTOR, SUPER_DOCTOR } = require("../utils/constants");
 
 // Middlewares
 const { protect, allowedTo } = require("../middlewares/auth.middleware");
@@ -34,7 +34,7 @@ router
         .route("/lang")
         .patch(
             protect,
-            allowedTo(USER, DOCTOR),
+            allowedTo(USER, DOCTOR, SUPER_DOCTOR),
             GlobalValidator.updateUserLangValidator,
             UserController.updateUserLang
         );
