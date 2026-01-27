@@ -1,6 +1,6 @@
 const express = require("express");
 
-const { USER, DOCTOR } = require("../utils/constants");
+const { USER, DOCTOR, SUPER_DOCTOR } = require("../utils/constants");
 
 // Middlewares
 const { protect, allowedTo } = require("../middlewares/auth.middleware");
@@ -26,14 +26,14 @@ router.route("/")
 router.route("/doctor")
     .get( 
         protect, 
-        allowedTo(DOCTOR), 
+        allowedTo(DOCTOR, SUPER_DOCTOR), 
         AppointmentController.getDoctorAppointments
     );
 
 router.route("/doctor/reports")
     .get( 
         protect, 
-        allowedTo(DOCTOR), 
+        allowedTo(DOCTOR, SUPER_DOCTOR), 
         AppointmentController.getDoctorReports
     );
 
@@ -47,7 +47,7 @@ router.route("/reports")
 router.route("/:id/status")
     .patch(
         protect,
-        allowedTo(USER, DOCTOR),
+        allowedTo(USER, DOCTOR, SUPER_DOCTOR),
         AppointmentController.changeAppointmentStatus
     );
 
@@ -55,7 +55,7 @@ router
     .route("/:id/reports")
     .get(
         protect,
-        allowedTo(USER, DOCTOR),
+        allowedTo(USER, DOCTOR, SUPER_DOCTOR),
         AppointmentController.generateAppointmentReport
     )
 
@@ -69,13 +69,13 @@ router
 
 router.route("/:id")
     .patch( 
-        protect, 
-        allowedTo(DOCTOR), 
-        AppointmentValidator.validateUpdateAppointmentTime, 
+        protect,
+        allowedTo(DOCTOR, SUPER_DOCTOR),
+        AppointmentValidator.validateUpdateAppointmentTime,
         AppointmentController.updateAppointment
-    ).delete( 
-        protect, 
-        allowedTo(USER, DOCTOR), 
+    ).delete(
+        protect,
+        allowedTo(USER, DOCTOR, SUPER_DOCTOR),
         AppointmentController.deleteAppointment
     );
 
