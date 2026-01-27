@@ -11,6 +11,13 @@ const DoctorValidator = require("../validators/doctor.validator");
 // Router
 const router = express.Router();
 
+router.route("/stats")
+    .get(
+        protect,
+        allowedTo(SUPER_DOCTOR),
+        SuperDoctorController.getStats
+    );
+
 router.route("/users")
     .get(
         protect,
