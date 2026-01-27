@@ -18,8 +18,6 @@ router.route("/")
         HospitalValidator.validateCreateHospital, 
         HospitalController.createHospital
     ).get(
-        protect, 
-        allowedTo(SUPER_DOCTOR), 
         HospitalController.getAllHospitals
     )
 
