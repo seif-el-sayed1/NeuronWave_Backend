@@ -58,7 +58,6 @@ class DoctorValidator {
         "any.required": "Medical Number is required",
       }),
 
-      hospitals: Joi.array().items(Joi.custom(objectIdValidator)).required(),
 
       gender: Joi.string().valid("male", "female", "ذكر", "انثي").required(),
       
@@ -117,7 +116,6 @@ class DoctorValidator {
 
       hospitals: Joi.array().items(Joi.custom(objectIdValidator)).optional(),
       
-      // Validate location using the defined schema
     });
     joiErrorHandler(schema, req);
 
