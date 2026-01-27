@@ -24,8 +24,9 @@ class HospitalController {
     //@route GET /api/v1/hospitals
     //@access Public
     getAllHospitals = asyncHandler(async (req, res, next) => {
+        const totalHospitals = await Hospital.countDocuments();
         const apiFeatures = new ApiFeatures(Hospital.find(), req.query, "Hospital")
-            .search()
+            .search()   
             .filter()
             .sort()
             .cleanResponse()
@@ -34,6 +35,7 @@ class HospitalController {
         const hospitals = await apiFeatures.query;
         res.status(200).json({
             success: true,
+            totalHospitals,
             totalResults: hospitals.length,
             pagination: {
                 page: Number(req.query.page),
