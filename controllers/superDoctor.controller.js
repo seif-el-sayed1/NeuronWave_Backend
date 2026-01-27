@@ -9,6 +9,73 @@ const Hospital = require('../models/hospital.model');
 const { translate } = require('../utils/translation');
 
 class SuperDoctorController {
+
+    //@desc Get App Statistics
+    //@route GET /api/v1/super-doctors/stats
+    //@access Private
+    getStats = asyncHandler(async (req, res, next) => {
+
+        const [
+            // Appointments
+            totalAppointments,
+            pendingAppointments,
+            approvedAppointments,
+            rejectedAppointments,
+
+            // Analysis
+            totalAnalysis,
+            pendingAnalysis,
+            approvedAnalysis,
+            rejectedAnalysis,
+
+            // Others
+            totalActiveDoctors,
+            totalActiveUsers,
+            totalHospitals
+
+        ] = await Promise.all([
+
+            // ===== Appointments =====
+            Appointment.countDocuments(),
+            Appointment.countDocuments({ status: "pending" }),
+            Appointment.countDocuments({ status: "approved" }),
+            Appointment.countDocuments({ status: "rejected" }),
+
+            // ===== Analysis =====
+            Analysis.countDocuments(),
+            Analysis.countDocuments({ status: "pending" }),
+            Analysis.countDocuments({ status: "approved" }),
+            Analysis.countDocuments({ status: "rejected" }),
+
+            // ===== Others =====
+            Doctor.countDocuments({ isActive: true }),
+            User.countDocuments({ isActive: true }),
+            Hospital.countDocuments()
+        ]);
+
+        res.status(200).json({
+            success: true,
+
+            totalAppointments,
+            appointmentStatus: {
+                pending: pendingAppointments,
+                approved: approvedAppointments,
+                rejected: rejectedAppointments
+            },
+
+            totalAnalysis,
+            analysisStatus: {
+                pending: pendingAnalysis,
+                approved: approvedAnalysis,
+                rejected: rejectedAnalysis
+            },
+
+            totalActiveDoctors,
+            totalActiveUsers,
+            totalHospitals
+        });
+    });
+
     // @desc Get all Users
     // @route GET /api/v1/super-doctors/users
     // @access Private
