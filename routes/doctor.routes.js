@@ -1,6 +1,6 @@
 const express = require("express");
 
-const { DOCTOR } = require("../utils/constants");
+const { DOCTOR, SUPER_DOCTOR } = require("../utils/constants");
 
 // Middlewares
 const { protect, allowedTo } = require("../middlewares/auth.middleware");
@@ -23,11 +23,11 @@ router
     .route("/me")
     .get(
         protect,
-        allowedTo(DOCTOR),
+        allowedTo(DOCTOR, SUPER_DOCTOR),
         DoctorController.getMyProfile
     ).patch(
         protect,
-        allowedTo(DOCTOR),
+        allowedTo(DOCTOR, SUPER_DOCTOR),
         DoctorValidator.validateUpdateDoctor,
         DoctorController.updateMe
     ).delete(
