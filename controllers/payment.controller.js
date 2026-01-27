@@ -102,108 +102,94 @@ class PaymentClass {
   }
 
   async callBack(req, res) {
-  try {
-    console.log("========== PAYMENT CALLBACK ==========");
-    
-    const receivedHmac = req.query.hmac || req.headers["x-hmac-sha512"];
-    
-    if (!receivedHmac) {
-      return res.status(400).json({ success: false, message: "Missing HMAC" });
-    }
+    try {
+      const receivedHmac = req.query.hmac || req.headers["x-hmac-sha512"];
+      
+      if (!receivedHmac) {
+        return res.status(400).json({ success: false, message: "Missing HMAC" });
+      }
 
-    console.log("⚠️ Skipping HMAC validation for testing");
+      const transactionData = req.body?.obj;
 
-    const transactionData = req.body?.obj;
+      if (!transactionData) {
+        return res.status(400).json({ success: false, message: "Invalid callback data" });
+      }
 
-    if (!transactionData) {
-      return res.status(400).json({ success: false, message: "Invalid callback data" });
-    }
+      const nextPaymentIntention = transactionData.payment_key_claims?.next_payment_intention;
+      
 
-    const nextPaymentIntention = transactionData.payment_key_claims?.next_payment_intention;
-    
-    console.log("🔍 Next Payment Intention:", nextPaymentIntention);
+      let order_id;
+      if (nextPaymentIntention) {
+        order_id = nextPaymentIntention.split("_")[2];
+      }
 
-    let order_id;
-    if (nextPaymentIntention) {
-      order_id = nextPaymentIntention.split("_")[2];
-    }
+      if (!order_id) {
+        console.error("❌ Could not extract order ID from intention");
+        return res.status(400).json({ success: false, message: "Invalid order data" });
+      }
 
-    console.log("🔍 Extracted Order ID:", order_id);
+      let status = "failed";
+      if (transactionData.success) status = "succeeded";
+      else if (transactionData.pending) status = "pending";
 
-    if (!order_id) {
-      console.error("❌ Could not extract order ID from intention");
-      return res.status(400).json({ success: false, message: "Invalid order data" });
-    }
 
-    let status = "failed";
-    if (transactionData.success) status = "succeeded";
-    else if (transactionData.pending) status = "pending";
-
-    console.log("📊 Payment Status:", status);
-
-    const payment = await Payment.findOneAndUpdate(
-      { orderCode: order_id },
-      {
-        $set: {
-          success: transactionData.success,
-          pending: transactionData.pending,
-          cardNum: transactionData.data?.card_num || null,
-          cardType: transactionData.data?.card_type || null,
-          currency: transactionData.currency || null,
-          status,
-          updatedAt: Date.now(),
+      const payment = await Payment.findOneAndUpdate(
+        { orderCode: order_id },
+        {
+          $set: {
+            success: transactionData.success,
+            pending: transactionData.pending,
+            cardNum: transactionData.data?.card_num || null,
+            cardType: transactionData.data?.card_type || null,
+            currency: transactionData.currency || null,
+            status,
+            updatedAt: Date.now(),
+          },
         },
-      },
-      { new: true }
-    );
+        { new: true }
+      );
 
-    if (!payment) {
-      console.error(`❌ Payment not found for order_id: ${order_id}`);
-      
-      const allPayments = await Payment.find({}).select('orderCode').limit(10);
-      console.log("📋 Available order codes:", allPayments.map(p => p.orderCode));
-      
-      return res.status(404).json({
-        success: false,
-        message: "Payment not found",
-      });
-    }
-
-    console.log("✅ Payment updated:", payment._id);
-
-    if (payment.success === true) {
-      const appointment = await Appointment.findById(payment.appointment);
-      if (!appointment) {
-        console.error("❌ Appointment not found");
+      if (!payment) {
+        
+        const allPayments = await Payment.find({}).select('orderCode').limit(10);
+        
         return res.status(404).json({
           success: false,
-          message: "Appointment not found",
+          message: "Payment not found",
         });
       }
 
-      console.log("📅 Before update - isPaid:", appointment.isPaid);
-      
-      appointment.isPaid = true;
-      appointment.paymentWay = "online";
-      await appointment.save();
 
-      console.log("✅ After update - isPaid:", appointment.isPaid);
+      if (payment.success === true) {
+        const appointment = await Appointment.findById(payment.appointment);
+        if (!appointment) {
+          console.error("❌ Appointment not found");
+          return res.status(404).json({
+            success: false,
+            message: "Appointment not found",
+          });
+        }
+        
+        appointment.isPaid = true;
+        appointment.paymentWay = "online";
+        await appointment.save();
+
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Callback processed",
+        status,
+      });
+    } catch (error) {
+      console.error("❌ ERROR:", error);
+      console.error("Stack:", error.stack);
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
     }
-
-    return res.status(200).json({
-      success: true,
-      message: "Callback processed",
-      status,
-    });
-  } catch (error) {
-    console.error("❌ ERROR:", error);
-    console.error("Stack:", error.stack);
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-}
 }
 
 module.exports = new PaymentClass();
