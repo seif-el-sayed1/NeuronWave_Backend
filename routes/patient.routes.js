@@ -16,7 +16,7 @@ const router = express.Router();
 router.route("/")
     .post(
         protect,
-        allowedTo(DOCTOR),
+        allowedTo(DOCTOR, SUPER_DOCTOR),
         PatientValidator.validateAddPatient,
         PatientsController.addPatient
     )
@@ -29,25 +29,25 @@ router.route("/")
 router.route("/:id/note")
     .patch(
         protect,
-        allowedTo(DOCTOR),
+        allowedTo(DOCTOR, SUPER_DOCTOR),
         PatientsController.addPatientNote
     )
 
 router.route("/:id")
     .get(
         protect,
-        allowedTo(DOCTOR),
+        allowedTo(DOCTOR, SUPER_DOCTOR),
         PatientsController.getOnePatient
     )
     .patch(
         protect,
-        allowedTo(DOCTOR),
+        allowedTo(DOCTOR, SUPER_DOCTOR),
         PatientValidator.validateUpdatePatient,
         PatientsController.updatePatient
     )
     .delete(
         protect,
-        allowedTo(DOCTOR),
+        allowedTo(DOCTOR, SUPER_DOCTOR),
         PatientsController.deletePatient
     )
 
