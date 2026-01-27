@@ -6,25 +6,25 @@ const { protect, allowedTo } = require("../middlewares/auth.middleware");
 
 
 // Constants
-const { USER, DOCTOR } = require("../utils/constants");
+const { USER, DOCTOR, SUPER_DOCTOR } = require("../utils/constants");
 
 // Classes
 const NotificationController = require("../controllers/notification.controller");
 
 router
   .route("/me")
-  .get(protect, allowedTo(USER, DOCTOR), NotificationController.getUserNotifications);
+  .get(protect, allowedTo(USER, DOCTOR, SUPER_DOCTOR), NotificationController.getUserNotifications);
   
 
   router
   .route("/mark/all/seen")
-  .patch(protect, allowedTo(USER, DOCTOR), NotificationController.markAllNotificationsAsSeen);
+  .patch(protect, allowedTo(USER, DOCTOR, SUPER_DOCTOR), NotificationController.markAllNotificationsAsSeen);
 
   router
   .route("/mark/:id/seen")
   .patch(
     protect,
-    allowedTo(USER, DOCTOR),
+    allowedTo(USER, DOCTOR, SUPER_DOCTOR),
     NotificationController.markNotificationAsSeen
   );
 
