@@ -16,46 +16,64 @@ class SuperDoctorController {
     getStats = asyncHandler(async (req, res, next) => {
 
         const [
-            // Appointments
+            // ===== Appointments =====
             totalAppointments,
             pendingAppointments,
             approvedAppointments,
             rejectedAppointments,
 
-            // Analysis
+            // ===== Analysis =====
             totalAnalysis,
             pendingAnalysis,
             approvedAnalysis,
             rejectedAnalysis,
 
-            // Others
+            // ===== Reports =====
+            totalAppointmentReports,
+            totalAnalysisReports,
+
+            // ===== Others =====
             totalActiveDoctors,
             totalActiveUsers,
             totalHospitals
 
         ] = await Promise.all([
 
-            // ===== Appointments =====
+            // Appointments
             Appointment.countDocuments(),
             Appointment.countDocuments({ status: "pending" }),
             Appointment.countDocuments({ status: "approved" }),
             Appointment.countDocuments({ status: "rejected" }),
 
-            // ===== Analysis =====
+            // Analysis
             Analysis.countDocuments(),
             Analysis.countDocuments({ status: "pending" }),
             Analysis.countDocuments({ status: "approved" }),
             Analysis.countDocuments({ status: "rejected" }),
 
-            // ===== Others =====
+            // Reports (definitions)
+            Appointment.countDocuments({
+                status: "accepted",
+                date: { $ne: null },
+                time: { $ne: null }
+            }),
+            Analysis.countDocuments({
+                status: "approved",
+                consultation: { $exists: true, $ne: null }
+            }),
+
+            // Others
             Doctor.countDocuments({ isActive: true }),
             User.countDocuments({ isActive: true }),
             Hospital.countDocuments()
         ]);
 
+        const totalReports = totalAppointmentReports + totalAnalysisReports;
+
         res.status(200).json({
             success: true,
 
+            // ===== Appointments =====
             totalAppointments,
             appointmentStatus: {
                 pending: pendingAppointments,
@@ -63,6 +81,7 @@ class SuperDoctorController {
                 rejected: rejectedAppointments
             },
 
+            // ===== Analysis =====
             totalAnalysis,
             analysisStatus: {
                 pending: pendingAnalysis,
@@ -70,6 +89,14 @@ class SuperDoctorController {
                 rejected: rejectedAnalysis
             },
 
+            // ===== Reports =====
+            totalReports,
+            reportsByType: {
+                appointments: totalAppointmentReports,
+                analysis: totalAnalysisReports
+            },
+
+            // ===== Others =====
             totalActiveDoctors,
             totalActiveUsers,
             totalHospitals
