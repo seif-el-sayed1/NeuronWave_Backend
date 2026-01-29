@@ -63,7 +63,7 @@ class SuperDoctorController {
             }),
 
             // Others
-            Doctor.countDocuments({ isActive: true }),
+            Doctor.countDocuments({ isActive: true, role: {$ne: "superDoctor"} }),
             User.countDocuments({ isActive: true }),
             Hospital.countDocuments()
         ]);
@@ -109,7 +109,9 @@ class SuperDoctorController {
     getAllUsers = asyncHandler(async(req, res, next) => {
         const totalUsers = await User.countDocuments({isActive: true});
         
-        const apiFeatures = new ApiFeatures(User.find({isActive: true}), req.query, "User")
+        const apiFeatures = new ApiFeatures(User.find({isActive: true})
+            .select("fullName phone email createdAt role emergencyContact dateOfBirth gender age address emergencyContact lastVisit diagnosis").populate("doctor", "fullName")
+            , req.query, "User")
             .search()
             .filter()
             .sort()
@@ -134,9 +136,11 @@ class SuperDoctorController {
     //@route GET /api/v1/super-doctors/doctors
     //@access Private
     getAllDoctors = asyncHandler(async(req, res, next) => {
-        const totalDoctors = await Doctor.countDocuments({ isActive: true });
+        const totalDoctors = await Doctor.countDocuments({ isActive: true, role: {$ne: "superDoctor"} });
 
-        const apiFeatures = new ApiFeatures(Doctor.find({ isActive: true, role: {$ne: "superDoctor"} }), req.query, "Doctor")
+        const apiFeatures = new ApiFeatures(Doctor.find({ isActive: true, role: {$ne: "superDoctor"} })
+            .select("fullName phone email createdAt role medicalSpecialty hospitals isBlocked medicalNumber gender").populate("hospitals", "hospitalName -_id")
+            , req.query, "Doctor")
             .search()
             .filter()
             .sort()
@@ -345,7 +349,7 @@ class SuperDoctorController {
             message: "Doctor deleted successfully",
             data: doctor
         });
-    })
+    })  
 
     //@desc update user
     //@route PATCH /api/v1/super-doctors/users/:id
