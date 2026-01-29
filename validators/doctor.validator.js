@@ -304,6 +304,8 @@ class DoctorValidator {
         medicalNumber: Joi.string().custom(medicalNumberValidator).required().messages({
           "any.required": "Medical Number is required",
         }),
+        
+        registerType: Joi.string().required(),
 
         hospitals: Joi.array().items(Joi.custom(objectIdValidator)).required(),
 
