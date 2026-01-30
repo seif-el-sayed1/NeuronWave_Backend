@@ -109,8 +109,7 @@ class SuperDoctorController {
     getAllUsers = asyncHandler(async(req, res, next) => {
         const totalUsers = await User.countDocuments({isActive: true});
         
-        const apiFeatures = new ApiFeatures(User.find({isActive: true})
-            .select("fullName phone email createdAt role emergencyContact dateOfBirth gender age address emergencyContact lastVisit diagnosis").populate("doctor", "fullName")
+        const apiFeatures = new ApiFeatures(User.find({isActive: true}).populate("doctor", "fullName")
             , req.query, "User")
             .search()
             .filter()
@@ -139,7 +138,7 @@ class SuperDoctorController {
         const totalDoctors = await Doctor.countDocuments({ isActive: true, role: {$ne: "superDoctor"} });
 
         const apiFeatures = new ApiFeatures(Doctor.find({ isActive: true, role: {$ne: "superDoctor"} })
-            .select("fullName phone email createdAt role medicalSpecialty hospitals isBlocked medicalNumber gender").populate("hospitals", "hospitalName -_id")
+            .populate("hospitals", "hospitalName -_id")
             , req.query, "Doctor")
             .search()
             .filter()
