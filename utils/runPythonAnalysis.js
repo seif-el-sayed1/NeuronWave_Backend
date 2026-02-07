@@ -31,13 +31,7 @@ async function runPythonAnalysis(modelType, filePath, originalName, isVideo = fa
 
     return new Promise((resolve, reject) => {
         exec(command, { maxBuffer: 1024 * 1024 * 10 }, async (error, stdout, stderr) => {
-            try {
-                await fs.unlink(filePath).catch(() => {});
-            } catch (e) {
-                console.warn('Failed to delete temporary file:', e.message);
-            }
-
-
+            
             if (error) {
                 return reject(new Error(`Failed to run analysis: ${stderr || error.message}`));
             }
