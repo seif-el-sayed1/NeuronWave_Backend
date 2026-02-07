@@ -80,7 +80,14 @@ class DoctorController {
         if (req.body.notificationToken) doctor.notificationToken = req.body.notificationToken;
         await doctor.save();
 
-        const [appointmentsReports, analysesReports, pendingAnalyses, notifications] = await Promise.all([
+        const [pendingAppointments, totalAppointments, appointmentsReports, analysesReports, pendingAnalyses, notifications] = await Promise.all([
+            Appointment.find({
+                doctor: doctor._id,
+                status: "pending",
+            }),
+            Appointment.find({
+                doctor: doctor._id,
+            }),
             Appointment.find({
                 doctor: doctor._id,
                 status: "accepted",
@@ -114,6 +121,8 @@ class DoctorController {
         res.status(200).json({
             success: true,
             message,
+            pendingAppointments: pendingAppointments.length, 
+            totalAppointments: totalAppointments.length,
             totalReports,
             totalUnseenNotifications: notifications.length,
             pendingAnalyses: pendingAnalyses.length,

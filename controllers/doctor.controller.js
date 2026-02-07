@@ -2,6 +2,9 @@ const asyncHandler = require("express-async-handler");
 const ApiFeatures = require("../utils/ApiFeatures");
 const ApiError = require("../utils/ApiError");
 const Doctor = require("../models/doctor.model");
+const Appointment = require("../models/appointment.model")
+const Analysis = require("../models/analysis.model")
+const Notification = require("../models/notification.model")
 const { translate } = require("../utils/translation");
 class DoctorController {
     
@@ -38,10 +41,45 @@ class DoctorController {
                 .select("fullName phone email profilePicture createdAt role medicalSpecialty hospitals").populate("hospitals", "hospitalName");
         const lang = req.headers.lang || "en";
 
+        const [pendingAppointments, totalAppointments, appointmentsReports, analysesReports, pendingAnalyses, notifications] = await Promise.all([
+            Appointment.find({
+                doctor: req.user._id,
+                status: "pending",
+            }),
+            Appointment.find({
+                doctor: req.user._id,
+            }),
+            Appointment.find({
+                doctor: req.user._id,
+                status: "accepted",
+                date: { $ne: null },
+                time: { $ne: null }
+            }),
+            Analysis.find({
+                doctor: req.user._id,
+                status: "approved",
+                consultation: { $exists: true, $ne: null }
+            }),
+            Analysis.find({
+                doctor: req.user._id,
+                status: "pending"
+            }),
+            Notification.find({
+                user: req.user._id,
+                seen: false
+            })
+        ]);
+        const totalReports = appointmentsReports.length + analysesReports.length;
+
         if (!user) return next(new ApiError(translate("Doctor not found", lang), 404));
 
         res.status(200).json({
             success: true,
+            pendingAppointments: pendingAppointments.length, 
+            totalAppointments: totalAppointments.length,
+            totalReports,
+            totalUnseenNotifications: notifications.length,
+            pendingAnalyses: pendingAnalyses.length,            
             user,
         });
     });
