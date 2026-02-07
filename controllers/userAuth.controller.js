@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const User = require("../models/user.model");
 const Appointment = require("../models/appointment.model");
 const Analysis = require("../models/analysis.model");
+const Notification = require("../models/notification.model")
 const ApiError = require("../utils/ApiError");
 const { translate } = require("../utils/translation");
 const { generateCode, hashCode } = require("../utils/generateCode");
@@ -79,7 +80,7 @@ class UserController {
         user.lastVisit = new Date();
         await user.save();
 
-        const [appointmentsReports, analysesReports] = await Promise.all([
+        const [appointmentsReports, analysesReports, pendingAnalyses, notifications] = await Promise.all([
             Appointment.find({
                 patient: user._id,
                 status: "accepted",
@@ -90,6 +91,14 @@ class UserController {
                 patient: user._id,
                 status: "approved",
                 consultation: { $exists: true, $ne: null }
+            }),
+            Analysis.find({
+                patient: user._id,
+                status: "pending",
+            }),
+            Notification.find({
+                user: user._id,
+                seen: false
             })
         ]);
 
@@ -106,6 +115,8 @@ class UserController {
             success: true,
             message: `Welcome back ${user.fullName || ""}!`,
             totalReports,
+            pendingAnalyses: pendingAnalyses.length,
+            totalUnseenNotifications: notifications.length,
             data: {
                 ...this.#getUsersData(responseUser, lang),
                 ...token

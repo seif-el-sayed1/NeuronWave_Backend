@@ -1,6 +1,9 @@
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../utils/ApiError");
 const User = require("../models/user.model");
+const Analysis = require("../models/analysis.model");
+const Appointment = require("../models/appointment.model");
+const Notification = require("../models/notification.model")
 const { translate } = require("../utils/translation");
 
 class UserController {
@@ -12,10 +15,38 @@ class UserController {
         const user = await User.findById(req.user._id)
                 .select("fullName phone email  createdAt role emergencyContact medicalId");
 
+        const [appointmentsReports, analysesReports, pendingAnalyses, notifications ] = await Promise.all([
+            Appointment.find({
+                patient: req.user._id,
+                status: "accepted",
+                date: { $ne: null },
+                time: { $ne: null }
+            }),
+            Analysis.find({
+                patient: req.user._id,
+                status: "approved",
+                consultation: { $exists: true, $ne: null }
+            }),
+            Analysis.find({
+                patient: req.user._id,
+                status: "pending",
+            }),
+            Notification.find({
+                user: user._id,
+                seen: false
+            })
+            
+        ]);
+        const totalReports = appointmentsReports.length + analysesReports.length;
+
+
         if (!user) return next(new ApiError(translate("User not found", lang), 404));
 
         res.status(200).json({
             success: true,
+            totalReports,
+            pendingAnalyses: pendingAnalyses.length,
+            totalUnseenNotifications: notifications.length,
             user,
         });
     });
