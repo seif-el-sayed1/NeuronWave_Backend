@@ -74,6 +74,16 @@ class UserController {
             }
         }
 
+        // CHECK IF USER ALREADY LOGGED IN
+        if (user.token && user.tokenExpDate && user.tokenExpDate > Date.now()) {
+            return next(
+                new ApiError(
+                    "This email is currently logged in on another device. Please log out from other devices.",
+                    403
+                )
+            );
+        }
+
         const token = await user.generateToken();
 
         if (req.body.notificationToken) user.notificationToken = req.body.notificationToken;
@@ -123,6 +133,7 @@ class UserController {
             }
         });
     });
+
 
 
 
