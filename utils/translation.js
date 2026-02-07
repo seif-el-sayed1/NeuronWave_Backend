@@ -97,7 +97,7 @@ const ar = {
   "id and consultation are required" : "المعرف والاستشارة مطلوبين",
   "Analysis is not approved" : "غير موافق علي التحليل",
   //auth middleware
-  "Session expired, please login again..." : "انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى...",
+  "This email is currently logged in on another device. Please log out from other devices." : "تم تسجيل الدخول بهذا البريد الإلكتروني على جهاز آخر. يرجى تسجيل الخروج من باقي الأجهزة.",
   "account is deactivated" : "تم إلغاء تنشيط هذا الحساب",
   "Password recently changed, please login again..." : "تم تغيير كلمة المرور مؤخرا، يرجى تسجيل الدخول مرة أخرى...",
   "not found" : "غير موجود",
