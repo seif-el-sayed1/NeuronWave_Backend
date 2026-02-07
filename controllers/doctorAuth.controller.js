@@ -45,6 +45,7 @@ class DoctorController {
         }
 
         let message = `Welcome back ${doctor.fullName || ""}!`;
+
         if (!doctor.isActive) {
             return next(new ApiError(translate("Incorrect Email or password", lang), 403));
         }
@@ -76,11 +77,29 @@ class DoctorController {
             );
         }
 
+        // CHECK IF DOCTOR ALREADY LOGGED IN
+        if (doctor.token && doctor.tokenExpDate && doctor.tokenExpDate > Date.now()) {
+            return next(
+                new ApiError(
+                    "This email is currently logged in on another device. Please log out from other devices.",
+                    403
+                )
+            );
+        }
+
         const token = await doctor.generateToken();
+
         if (req.body.notificationToken) doctor.notificationToken = req.body.notificationToken;
         await doctor.save();
 
-        const [pendingAppointments, totalAppointments, appointmentsReports, analysesReports, pendingAnalyses, notifications] = await Promise.all([
+        const [
+            pendingAppointments,
+            totalAppointments,
+            appointmentsReports,
+            analysesReports,
+            pendingAnalyses,
+            notifications
+        ] = await Promise.all([
             Appointment.find({
                 doctor: doctor._id,
                 status: "pending",
@@ -121,7 +140,7 @@ class DoctorController {
         res.status(200).json({
             success: true,
             message,
-            pendingAppointments: pendingAppointments.length, 
+            pendingAppointments: pendingAppointments.length,
             totalAppointments: totalAppointments.length,
             totalReports,
             totalUnseenNotifications: notifications.length,
@@ -132,6 +151,7 @@ class DoctorController {
             }
         });
     });
+
 
   // @desc    Log In
   // @route   POST /doctors/auth/login
