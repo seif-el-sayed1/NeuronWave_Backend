@@ -50,6 +50,57 @@ class SocketController {
     }
   };
 
+  // Notify the other participant that current user started typing
+  startTyping = async (socket, userData, { chatId }) => {
+    try {
+      if (!chatId) return socket.emit("error", "Chat ID is required");
+
+      const chat = await Chat.findById(chatId);
+      if (!chat || !chat.hasParticipant(userData._id)) {
+        return socket.emit("error", "Chat not found or unauthorized");
+      }
+
+      // Send typing event only to the other participant
+      chat.participants.forEach((participant) => {
+        if (participant.participantId.toString() !== userData._id.toString()) {
+          socket.to(participant.participantId.toString()).emit("typing", {
+            chatId,
+            userId: userData._id,
+            userName: userData.fullName || userData.firstName
+          });
+        }
+      });
+    } catch (error) {
+      console.error("Error in startTyping:", error);
+      socket.emit("error", "Failed to send typing indicator");
+    }
+  };
+
+  // Notify the other participant that typing has stopped
+  stopTyping = async (socket, userData, { chatId }) => {
+    try {
+      if (!chatId) return socket.emit("error", "Chat ID is required");
+
+      const chat = await Chat.findById(chatId);
+      if (!chat || !chat.hasParticipant(userData._id)) {
+        return socket.emit("error", "Chat not found or unauthorized");
+      }
+
+      chat.participants.forEach((participant) => {
+        if (participant.participantId.toString() !== userData._id.toString()) {
+          socket.to(participant.participantId.toString()).emit("stop-typing", {
+            chatId,
+            userId: userData._id,
+            userName: userData.fullName || userData.firstName
+          });
+        }
+      });
+    } catch (error) {
+      console.error("Error in stopTyping:", error);
+      socket.emit("error", "Failed to send stop typing indicator");
+    }
+  };
+
 
 }
 
