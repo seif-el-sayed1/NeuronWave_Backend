@@ -361,6 +361,68 @@ class ChatController {
     res.status(200).json({ success: true, data });
   });
 
+  // Get paginated messages from a specific chat
+  // Marks messages as read/delivered when viewed
+  getChatMessages = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { _id: userId } = req.user;
+    const lang = req.headers.lang || "en";
+
+    const chat = await Chat.findById(id);
+    if (!chat) {
+      return res.status(404).json({ success: false, message: translate("Chat Not Found!", lang) });
+    }
+
+    if (!chat.hasParticipant(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: translate("You are not a participant in this chat", lang)
+      });
+    }
+
+    const query = { chat: id };
+    if (chat.clearedBy?.toString() === userId.toString()) {
+      query.createdAt = { $gt: chat.clearedAt };
+    }
+
+    const apiFeatures = new ApiFeatures(
+      Message.find(query)
+        .select("_id sender content type isDelivered isRead createdAt updatedAt")
+        .sort({ createdAt: -1 }),
+      req.query,
+      "Message"
+    )
+      .filter()
+      .search();
+
+    await apiFeatures.calculatePagination();
+    apiFeatures.paginate().cleanResponse();
+
+    const messages = await apiFeatures.query;
+
+    // Hide sensitive sender info & adjust delivery/read status for privacy
+    const transformedMessages = messages.map(message => ({
+      ...message._doc,
+      sender: undefined,
+      isDelivered: message.sender.senderId.toString() === userId.toString() ? message.isDelivered : true,
+      isRead: message.sender.senderId.toString() === userId.toString() ? message.isRead : true,
+      isMyMsg: message.sender.senderId.toString() === userId.toString()
+    }));
+
+    // Mark all incoming messages as read & delivered when user opens chat
+    await Message.updateMany(
+      { "sender.senderId": { $ne: userId }, chat: id },
+      { isDelivered: true, isRead: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      totalResults: transformedMessages.length,
+      pagination: apiFeatures.paginationResult,
+      data: transformedMessages
+    });
+  });
+
 
 }
 
