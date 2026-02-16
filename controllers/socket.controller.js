@@ -325,6 +325,53 @@ class SocketController {
     }
   };
 
+  // Mark specific message (and older ones) as delivered/read
+  // Usually called when client confirms delivery of a message
+  messageDelivered = async (io, socket, userData, chatRoomUsers, { messageId }) => {
+    try {
+      const message = await Message.findById(messageId);
+      if (!message) return;
+
+      const chatId = message.chat.toString();
+      const chat = await Chat.findById(chatId);
+
+      if (!chat || !chat.hasParticipant(userData._id)) {
+        return socket.emit("error", "Chat not found or unauthorized");
+      }
+
+      const updateBody = { isDelivered: true };
+      if (chatRoomUsers[chatId]?.has(userData._id.toString())) {
+        updateBody.isRead = true;
+      }
+
+      await Message.updateMany(
+        {
+          chat: chatId,
+          "sender.senderId": { $ne: userData._id },
+          createdAt: { $lte: message.createdAt }
+        },
+        updateBody
+      );
+
+      const otherParticipant = chat.getOtherParticipant(userData._id);
+      if (otherParticipant) {
+        io.to(otherParticipant.participantId.toString()).emit("message-delivered", {
+          chatId,
+          messageId: message._id,
+          messageTime: message.createdAt
+        });
+
+        if (chatRoomUsers[chatId]?.has(userData._id.toString())) {
+          io.to(otherParticipant.participantId.toString()).emit("messages-seen", {
+            chatId,
+            seenTime: new Date()
+          });
+        }
+      }
+    } catch (error) {
+      socket.emit("error", { message: error.message });
+    }
+  };
 
 }
 
