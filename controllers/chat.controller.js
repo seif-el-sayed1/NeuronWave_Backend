@@ -300,6 +300,67 @@ class ChatController {
     });
   });
 
+  // Get one specific chat + recent messages
+  // Used when opening a chat screen
+  getOneChat = asyncHandler(async (req, res) => {
+    const noOfMessages = parseInt(req.query.noOfMessages) || 10;
+    const userId = req.user._id;
+
+    const chat = await Chat.findById(req.params.id).populate(
+      "participants.participantId",
+      "_id fullName profilePicture blockedUsers"
+    );
+
+    if (!chat) return res.status(404).json({ success: false, message: "Chat not found" });
+
+    if (!chat.hasParticipant(userId)) {
+      return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+
+    const otherParticipant = chat.getOtherParticipant(userId);
+    const otherUser = otherParticipant.participantId;
+
+    // Check block status both ways
+    const blockedByMe = req.user.blockedUsers?.includes(otherUser._id) || false;
+    const blockedByOther = otherUser.blockedUsers?.includes(userId) || false;
+
+    let data = {
+      _id: chat._id,
+      to: {
+        _id: otherUser._id,
+        profilePicture: otherUser.profilePicture,
+        fullName: otherUser.fullName,
+        type: otherParticipant.participantType
+      },
+      blocked: blockedByMe || blockedByOther,
+      blockedByMe,
+      blockedByOther,
+      messages: []
+    };
+
+    const query = { chat: req.params.id };
+    // Respect clear history if user cleared this chat
+    if (chat.clearedBy?.toString() === userId.toString()) {
+      query.createdAt = { $gt: chat.clearedAt };
+    }
+
+    const messages = await Message.find(query)
+      .sort({ createdAt: -1 })
+      .limit(noOfMessages);
+
+    data.messages = messages.map(msg => ({
+      _id: msg._id,
+      content: msg.content,
+      type: msg.type,
+      isMyMsg: msg.sender.senderId.toString() === userId.toString(),
+      isDelivered: msg.isDelivered,
+      isRead: msg.isRead,
+      createdAt: msg.createdAt
+    }));
+
+    res.status(200).json({ success: true, data });
+  });
+
 
 }
 
