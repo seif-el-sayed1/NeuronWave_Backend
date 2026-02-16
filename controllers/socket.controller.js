@@ -373,6 +373,40 @@ class SocketController {
     }
   };
 
+  // User leaves a specific chat room
+  leaveChat = async (socket, userData, chatRoomUsers, { chatId }) => {
+    try {
+      socket.leave(chatId.toString());
+
+      if (chatRoomUsers[chatId]) {
+        chatRoomUsers[chatId].delete(userData._id.toString());
+        if (chatRoomUsers[chatId].size === 0) {
+          delete chatRoomUsers[chatId];
+        }
+      }
+    } catch (error) {
+      socket.emit("error", { message: error.message });
+    }
+  };
+
+  // Clean up — leave all chat rooms when user disconnects
+  leaveAllChats = (socket, userData, chatRoomUsers) => {
+    try {
+      const userId = userData._id.toString();
+
+      for (const [chatId, users] of Object.entries(chatRoomUsers)) {
+        if (users.has(userId)) {
+          socket.leave(chatId.toString());
+          users.delete(userId);
+          if (users.size === 0) {
+            delete chatRoomUsers[chatId];
+          }
+        }
+      }
+    } catch (error) {
+      socket.emit("error", { message: error.message });
+    }
+  };
 }
 
 module.exports = new SocketController();
