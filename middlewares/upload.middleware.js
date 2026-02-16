@@ -106,21 +106,11 @@ const uploadMediaConfiguration = multer({
 
 const uploadAnyImages = imageConfiguration.any([
     { name: "profilePicture", maxCount: 1 },
-    { name: "stadiumImages", maxCount: 10 },
-    { name: "beforeImages", maxCount: 5 },
-    { name: "afterImages", maxCount: 5 },
-]);
-
-const uploadMultipleVideos = VideoConfiguration.any([
-    { name: "stadiumVideos", maxCount: 10 },
 ]);
 
 const uploadMedia = uploadMediaConfiguration.any([
     { name: "video", maxCount: 10 },
-    { name: "stadiumVideos", maxCount: 10 },
-    { name: "ticketImages", maxCount: 10 },
-    { name: "ticketVideos", maxCount: 10 },
-    { name: "ticketVoices", maxCount: 10 },
+    { name: "chatImages", maxCount: 5 },
 ]);
 
 const uploadSingleImage = (fileKey) => imageConfiguration.single(fileKey);
