@@ -577,6 +577,69 @@ class ChatController {
     }
   });
 
+  // Clear/delete chat history logic (per user)
+  // Different behavior based on who cleared before
+  clearChat = asyncHandler(async (req, res, next) => {
+    const { id } = req.params;
+    const userId = req.user._id;
+    const lang = req.headers.lang || "en";
+
+    const session = await Chat.startSession();
+    session.startTransaction();
+
+    try {
+      const chat = await Chat.findById(id).session(session);
+      if (!chat) throw new ApiError(translate("Chat not found", lang), 404);
+
+      if (!chat.hasParticipant(userId)) {
+        throw new ApiError(translate("You are not a participant in this chat", lang), 403);
+      }
+
+      if (chat.clearedBy?.toString() === userId.toString()) {
+        // Already cleared by me → just update timestamp
+        chat.clearedAt = new Date();
+        await chat.save({ session });
+      } 
+      else if (chat.clearedBy) {
+        // Other person cleared before
+        const messagesAfterOtherClear = await Message.find({
+          chat: id,
+          createdAt: { $gt: chat.clearedAt }
+        }).session(session);
+
+        if (messagesAfterOtherClear.length === 0) {
+          // No new messages → delete chat completely
+          await chat.deleteOne({ session });
+          await Message.deleteMany({ chat: id }, { session });
+        } else {
+          // Delete old messages, set new clear for me
+          await Message.deleteMany({
+            chat: id,
+            createdAt: { $lt: chat.clearedAt }
+          }).session(session);
+
+          chat.clearedBy = userId;
+          chat.clearedAt = new Date();
+          await chat.save({ session });
+        }
+      } 
+      else {
+        // First time clear → just mark for current user
+        chat.clearedBy = userId;
+        chat.clearedAt = new Date();
+        await chat.save({ session });
+      }
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.status(200).json({ success: true, message: "Chat cleared successfully" });
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      next(error);
+    }
+  });
 }
 
 module.exports = new ChatController();
