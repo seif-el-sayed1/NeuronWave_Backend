@@ -122,6 +122,5 @@ module.exports = {
     uploadSingleImage,
     uploadSingleFile,
     uploadSingleVideo,
-    uploadMultipleVideos,
     uploadMedia,
 };
