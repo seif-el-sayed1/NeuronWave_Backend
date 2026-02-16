@@ -101,6 +101,170 @@ class SocketController {
     }
   };
 
+  // Core real-time message sending logic
+  // Handles:
+  // - Creating new chat if needed
+  // - Block check (user ↔ user only)
+  // - First message after clear logic
+  // - Emitting new-chat or message event
+  // - Sending push notification if receiver is offline
+  sendChatMessage = async (io, socket, userData, chatRoomUsers, data, onlineUsers) => {
+    try {
+      let { content, chatId, otherUserId, otherUserType, type = "text" } = data;
+
+      let firstMsg = false;
+      let chat;
+
+      if (chatId && otherUserId) {
+        return socket.emit("error", "Cannot provide both chatId and otherUserId");
+      }
+
+      // Create or find chat when sending to a specific user
+      if (otherUserId) {
+        const senderType = userData.role === "doctor" ? "Doctor" : "User";
+        const receiverType = otherUserType || "User";
+
+        // Block check — only between two regular users
+        if (senderType === "User" && receiverType === "User") {
+          const otherUser = await User.findById(otherUserId).select("_id blockedUsers");
+          if (!otherUser) return socket.emit("error", "User not found");
+
+          if (
+            userData.blockedUsers?.includes(otherUserId) ||
+            otherUser.blockedUsers?.includes(userData._id)
+          ) {
+            return socket.emit("error", "Cannot send message — user is blocked");
+          }
+        }
+
+        chat = await Chat.findOne({
+          "participants.participantId": { $all: [userData._id, otherUserId] }
+        });
+
+        if (!chat) {
+          chat = await Chat.create({
+            participants: [
+              { participantId: userData._id, participantType: senderType },
+              { participantId: otherUserId, participantType: receiverType }
+            ]
+          });
+          firstMsg = true;
+        }
+
+        // Join the newly created/found chat room
+        socket.join(chat._id.toString());
+        if (!chatRoomUsers[chat._id]) chatRoomUsers[chat._id] = new Set();
+        chatRoomUsers[chat._id].add(userData._id.toString());
+        chatId = chat._id.toString();
+      } 
+      // Existing chat provided
+      else if (chatId) {
+        chat = await Chat.findById(chatId);
+        if (!chat || !chat.hasParticipant(userData._id)) {
+          return socket.emit("error", "Chat not found or unauthorized");
+        }
+      }
+
+      const senderType = userData.role === "doctor" ? "Doctor" : "User";
+
+      // Create the message document
+      const newMessage = await Message.create({
+        chat: chatId,
+        sender: { senderId: userData._id, senderType },
+        content,
+        type,
+        isDelivered: false,
+        isRead: false
+      });
+
+      // Populate participants to get full user/doctor data
+      const populatedChat = await Chat.findById(chatId).populate(
+        "participants.participantId",
+        "_id fullName profilePicture notificationToken lang"
+      );
+
+      // Determine if this is the "first visible message" after clear for each participant
+      for (let participant of populatedChat.participants) {
+        const participantId = participant.participantId._id.toString();
+
+        if (populatedChat.clearedBy) {
+          if (populatedChat.clearedBy.toString() === participantId) {
+            const messagesAfterClear = await Message.find({
+              chat: populatedChat._id,
+              createdAt: { $gt: populatedChat.clearedAt }
+            });
+
+            firstMsg =
+              messagesAfterClear.length === 0 ||
+              (messagesAfterClear.length === 1 && 
+               messagesAfterClear[0]._id.toString() === newMessage._id.toString());
+          } else {
+            firstMsg = false;
+          }
+        }
+
+        const toParticipant = populatedChat.participants.find(
+          p => p.participantId._id.toString() !== participantId
+        );
+
+        if (firstMsg) {
+          // Send full "new chat" event with first message
+          io.to(participantId).emit("new-chat", {
+            _id: chatId,
+            to: {
+              _id: toParticipant.participantId._id,
+              profilePicture: toParticipant.participantId.profilePicture || "",
+              fullName: toParticipant.participantId.fullName,
+              type: toParticipant.participantType
+            },
+            messages: [{
+              _id: newMessage._id,
+              sender: {
+                _id: userData._id,
+                fullName: participantId === userData._id.toString() ? "You" : (userData.fullName || userData.firstName)
+              },
+              content: newMessage.content,
+              type: newMessage.type,
+              isDelivered: newMessage.isDelivered,
+              isRead: newMessage.isRead,
+              isMyMsg: participantId === userData._id.toString(),
+              createdAt: newMessage.createdAt
+            }],
+            unreadMessagesCount: participantId === userData._id.toString() ? 0 : 1,
+            blocked: false
+          });
+        } else {
+          // Normal message event
+          io.to(participantId).emit("message", {
+            ...newMessage.toObject(),
+            sender: undefined,
+            isMyMsg: participantId === userData._id.toString()
+          });
+        }
+      }
+
+      // Push notification if receiver is offline
+      const otherParticipant = populatedChat.participants.find(
+        p => p.participantId._id.toString() !== userData._id.toString()
+      );
+
+      if (
+        otherParticipant?.participantId?.notificationToken &&
+        (!chatRoomUsers[chatId] || !chatRoomUsers[chatId].has(otherParticipant.participantId._id.toString()))
+      ) {
+        sendNotification({
+          token: otherParticipant.participantId.notificationToken,
+          title: `${translate("New message from", otherParticipant.participantId.lang)} ${userData.fullName || userData.firstName}`,
+          body: content,
+          caseType: "chat",
+          info: chatId.toString()
+        });
+      }
+    } catch (error) {
+      socket.emit("error", { message: error.message });
+    }
+  };
+
 
 }
 
