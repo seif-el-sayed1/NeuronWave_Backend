@@ -265,6 +265,66 @@ class SocketController {
     }
   };
 
+  // Called when user connects — sync delivery/read status for all chats
+  messagesDeliveredOnConnect = async (io, socket, userData, chatRoomUsers) => {
+    try {
+      // Find all user's chats
+      const chats = await Chat.find({ "participants.participantId": userData._id });
+      const chatIds = chats.map(chat => chat._id.toString());
+
+      // Find undelivered messages sent to this user
+      const messages = await Message.find({
+        chat: { $in: chatIds },
+        "sender.senderId": { $ne: userData._id },
+        isDelivered: false,
+        isRead: false
+      });
+
+      for (let message of messages) {
+        if (!message?.chat) continue;
+
+        const chatId = message.chat.toString();
+        const chat = await Chat.findById(chatId);
+
+        if (!chat || !chat.hasParticipant(userData._id)) continue;
+
+        const updateBody = { isDelivered: true };
+        // If user is currently in this chat room → also mark as read
+        if (chatRoomUsers[chatId]?.has(userData._id.toString())) {
+          updateBody.isRead = true;
+        }
+
+        // Update all messages up to this one
+        await Message.updateMany(
+          {
+            chat: chatId,
+            "sender.senderId": { $ne: userData._id },
+            createdAt: { $lte: message.createdAt }
+          },
+          updateBody
+        );
+
+        const otherParticipant = chat.getOtherParticipant(userData._id);
+        if (otherParticipant) {
+          io.to(otherParticipant.participantId.toString()).emit("message-delivered", {
+            chatId,
+            messageId: message._id,
+            messageTime: message.createdAt
+          });
+
+          if (chatRoomUsers[chatId]?.has(userData._id.toString())) {
+            io.to(otherParticipant.participantId.toString()).emit("messages-seen", {
+              chatId,
+              seenTime: new Date()
+            });
+          }
+        }
+      }
+    } catch (error) {
+      socket.emit("error", { message: error.message });
+    }
+  };
+
 
 }
 
