@@ -423,6 +423,159 @@ class ChatController {
     });
   });
 
+  // Send multiple images/media in one request
+  // Creates chat if not exists, handles first message after clear
+  sendMediaMessage = asyncHandler(async (req, res, next) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const { _id: senderId } = req.user;
+      const senderType = req.user.role === "doctor" ? "Doctor" : "User";
+      const { receiverId, receiverType, chatId, media } = req.body;
+      const lang = req.headers.lang || "en";
+
+      let chat;
+      let firstMsg = false;
+
+      // Find or create chat
+      if (chatId && !receiverId) {
+        chat = await Chat.findById(chatId)
+          .populate("participants.participantId", "_id fullName profilePicture lang notificationToken")
+          .session(session);
+
+        if (!chat) throw new ApiError(translate("Chat not found", lang), 404);
+      } 
+      else if (receiverId && !chatId) {
+        chat = await Chat.findOne({
+          "participants.participantId": { $all: [senderId, receiverId] }
+        })
+          .populate("participants.participantId", "_id fullName profilePicture lang notificationToken")
+          .session(session);
+
+        if (!chat) {
+          const [newChat] = await Chat.create(
+            [{
+              participants: [
+                { participantId: senderId, participantType: senderType },
+                { participantId: receiverId, participantType: receiverType || "User" }
+              ]
+            }],
+            { session }
+          );
+          chat = await Chat.findById(newChat._id)
+            .populate("participants.participantId", "_id fullName profilePicture lang notificationToken")
+            .session(session);
+          firstMsg = true;
+        }
+      } 
+      else {
+        throw new ApiError("Please provide either chat id or receiver id", 400);
+      }
+
+      // Check if this is first message after someone cleared the chat
+      if (!firstMsg && chat.clearedBy && chat.clearedAt) {
+        const msgsAfterClear = await Message.find({
+          chat: chat._id,
+          createdAt: { $gt: chat.clearedAt }
+        }).session(session);
+        firstMsg = msgsAfterClear.length === 0;
+      }
+
+      // Create message documents for each media file
+      const promises = media.map(fileUrl => 
+        Message.create(
+          [{ 
+            chat: chat._id, 
+            sender: { senderId, senderType }, 
+            type: "image", 
+            content: fileUrl 
+          }],
+          { session }
+        )
+      );
+
+      let messages = (await Promise.all(promises)).map(arr => arr[0]);
+
+      const otherParticipant = chat.getOtherParticipant(senderId);
+      const toUser = otherParticipant.participantId;
+      const io = req.app.get("socketio");
+
+      // Emit to both users
+      messages.forEach((msg, index) => {
+        const isFirst = firstMsg && index === 0;
+
+        chat.participants.forEach(participant => {
+          const pId = participant.participantId._id.toString();
+          const isSender = pId === senderId.toString();
+
+          if (isFirst) {
+            io.to(pId).emit("new-chat", {
+              _id: chat._id,
+              to: {
+                _id: otherParticipant.participantId._id,
+                profilePicture: otherParticipant.participantId.profilePicture || "",
+                fullName: otherParticipant.participantId.fullName,
+                type: otherParticipant.participantType
+              },
+              messages: [{
+                _id: msg._id,
+                content: msg.content,
+                type: msg.type,
+                isDelivered: msg.isDelivered,
+                isRead: msg.isRead,
+                isMyMsg: isSender,
+                createdAt: msg.createdAt
+              }],
+              unreadMessagesCount: isSender ? 0 : 1,
+              blocked: false
+            });
+          } else {
+            io.to(pId).emit("message", {
+              ...msg.toObject(),
+              sender: undefined,
+              isMyMsg: isSender
+            });
+          }
+        });
+      });
+
+      // Send push notification if receiver has token
+      if (toUser?.notificationToken) {
+        sendMediaNotification({
+          fromUser: req.user,
+          toUser,
+          roomId: chat._id.toString(),
+          image: messages[0].content,
+          count: messages.length
+        });
+      }
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.status(201).json({
+        success: true,
+        chat: firstMsg ? {
+          _id: chat._id,
+          to: {
+            _id: toUser._id,
+            profilePicture: toUser.profilePicture,
+            fullName: toUser.fullName,
+            type: otherParticipant.participantType
+          },
+          messages: messages.map(m => ({ ...m.toObject(), sender: undefined, isMyMsg: true })),
+          unreadMessagesCount: 0,
+          blocked: false
+        } : undefined,
+        messages: firstMsg ? undefined : messages.map(m => ({ ...m.toObject(), sender: undefined, isMyMsg: true }))
+      });
+    } catch (error) {
+      if (session.inTransaction()) await session.abortTransaction();
+      session.endSession();
+      next(error);
+    }
+  });
 
 }
 
