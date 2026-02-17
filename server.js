@@ -17,7 +17,8 @@ require("./startup/logging")(app);
 require("./startup/app")(app);
 require("./startup/createSuperDoctor")();
 require("./startup/db")();
-// require("./startup/cronJobs")();
+require("./startup/socket")(server, app);
+
 // Server
 server.listen(PORT, (_) => {
     console.log(`🚀 ~ Server  Running on port ~ ${PORT}`.blue.bold);
