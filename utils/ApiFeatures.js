@@ -2,7 +2,8 @@ class ApiFeatures {
     constructor(query, queryString, modelName) {
         this.query = query;
         this.queryString = queryString;
-        this.modelName = modelName; 
+        this.modelName = modelName;
+        this.paginationResult = null;
     }
 
     search() {
@@ -10,7 +11,8 @@ class ApiFeatures {
         if (!keyword) return this;
         // search fields for each model
         const searchFields = {
-            User: ["fullName","email"],
+            User: ["firstName","lastName","email","phone"],
+            Message: ["content"],
             Doctor: ["fullName","email"],
             Notification: ["body"],
             Hospital: ["hospitalName"],
@@ -33,7 +35,7 @@ class ApiFeatures {
         const queryObj = { ...this.queryString };
 
         // remove common fields
-        const removeFields = ["search", "page", "limit", "sort", "select", "type"];
+        const removeFields = ["search", "page", "limit", "sort", "select"];
         removeFields.forEach((key) => delete queryObj[key]);
 
         // Handle date range safely
@@ -101,6 +103,31 @@ class ApiFeatures {
         this.query = this.query.select(fieldsToExclude.join(" "));
         return this;
     }
+
+    async calculatePagination() {
+        // Count total documents for current query
+        const totalDocs = await this.query.clone().countDocuments();
+        
+        // Determine current page and limit from query string, default values if not provided
+        const page = this.queryString.page ? Number(this.queryString.page) : 1;
+        const limit = this.queryString.limit ? Number(this.queryString.limit) : 20;
+
+        // Calculate total pages
+        const totalPages = Math.ceil(totalDocs / limit);
+
+        // Save pagination info to be used in response
+        this.paginationResult = {
+            currentPage: page,         
+            limit: limit,              
+            totalPages: totalPages,    
+            totalItems: totalDocs,     // total number of documents
+            hasNextPage: page < totalPages, // is there a next page
+            hasPrevPage: page > 1      // is there a previous page
+        };
+
+        return this; // allow chaining
+    }
+
 }
 
 module.exports = ApiFeatures;
