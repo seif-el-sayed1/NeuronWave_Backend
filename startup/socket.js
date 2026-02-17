@@ -95,7 +95,7 @@ module.exports = (server, app) => {
 
   io.on("connection", async (socket) => {
     try {
-      const token = socket.handshake.headers.authorization?.split(" ")[1];
+      const token = socket.handshake.headers.authorization;
       const userData = await getUserDetails(socket, token);
 
       if (!userData) return;
