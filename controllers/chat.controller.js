@@ -501,7 +501,24 @@ class ChatController {
       const toUser = otherParticipant.participantId;
       const io = req.app.get("socketio");
 
-      // Emit to both users
+      const onlineUsers = req.app.get("onlineUsers");
+      const receiverIsOnline = !!(onlineUsers && toUser && (
+        typeof onlineUsers.has === "function"
+          ? onlineUsers.has(toUser._id.toString())
+          : Array.isArray(onlineUsers)
+            ? onlineUsers.includes(toUser._id.toString())
+            : false
+      ));
+
+      if (receiverIsOnline) {
+        await Message.updateMany(
+          { _id: { $in: messages.map(m => m._id) } },
+          { isDelivered: true },
+          { session }
+        );
+        messages = messages.map(m => ({ ...m.toObject(), isDelivered: true }));
+      }
+
       messages.forEach((msg, index) => {
         const isFirst = firstMsg && index === 0;
 
@@ -520,6 +537,7 @@ class ChatController {
               },
               messages: [{
                 _id: msg._id,
+                receiver: { _id: toUser._id }, 
                 content: msg.content,
                 type: msg.type,
                 isDelivered: msg.isDelivered,
@@ -530,12 +548,29 @@ class ChatController {
               unreadMessagesCount: isSender ? 0 : 1,
               blocked: false
             });
+
+            if (isSender && receiverIsOnline) {
+              io.to(senderId.toString()).emit("message-delivered", {
+                chatId: chat._id,
+                messageId: msg._id,
+                messageTime: msg.createdAt
+              });
+            }
           } else {
             io.to(pId).emit("message", {
-              ...msg.toObject(),
+              ...(msg.toObject ? msg.toObject() : msg),
               sender: undefined,
+              receiver: { _id: toUser._id }, 
               isMyMsg: isSender
             });
+
+            if (isSender && receiverIsOnline) {
+              io.to(senderId.toString()).emit("message-delivered", {
+                chatId: chat._id,
+                messageId: msg._id,
+                messageTime: msg.createdAt
+              });
+            }
           }
         });
       });
@@ -564,11 +599,19 @@ class ChatController {
             fullName: toUser.fullName,
             type: otherParticipant.participantType
           },
-          messages: messages.map(m => ({ ...m.toObject(), sender: undefined, isMyMsg: true })),
+          messages: messages.map(m => ({ 
+            ...(m.toObject ? m.toObject() : m), 
+            sender: undefined, 
+            isMyMsg: true 
+          })),
           unreadMessagesCount: 0,
           blocked: false
         } : undefined,
-        messages: firstMsg ? undefined : messages.map(m => ({ ...m.toObject(), sender: undefined, isMyMsg: true }))
+        messages: firstMsg ? undefined : messages.map(m => ({ 
+          ...(m.toObject ? m.toObject() : m), 
+          sender: undefined, 
+          isMyMsg: true 
+        }))
       });
     } catch (error) {
       if (session.inTransaction()) await session.abortTransaction();
