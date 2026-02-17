@@ -432,8 +432,26 @@ class ChatController {
     try {
       const { _id: senderId } = req.user;
       const senderType = req.user.role === "doctor" ? "Doctor" : "User";
-      const { receiverId, receiverType, chatId, media } = req.body;
+      const { receiverId, receiverType, chatId } = req.body;
       const lang = req.headers.lang || "en";
+
+      const files = req.files;
+
+      if (!files || files.length === 0) {
+        throw new ApiError("No media uploaded", 400);
+      }
+
+      const getType = (mimetype) => {
+        if (mimetype.startsWith("image")) return "image";
+        if (mimetype.startsWith("video")) return "video";
+        if (mimetype.startsWith("audio")) return "voice";
+        return "file";
+      };
+
+      const mediaFiles = files.map(file => ({
+        url: file.path.replace(/\\/g, "/"),
+        type: getType(file.mimetype)
+      }));
 
       let chat;
       let firstMsg = false;
@@ -463,9 +481,11 @@ class ChatController {
             }],
             { session }
           );
+
           chat = await Chat.findById(newChat._id)
             .populate("participants.participantId", "_id fullName profilePicture lang notificationToken")
             .session(session);
+
           firstMsg = true;
         }
       } 
@@ -473,23 +493,23 @@ class ChatController {
         throw new ApiError("Please provide either chat id or receiver id", 400);
       }
 
-      // Check if this is first message after someone cleared the chat
+      // Check if first message after clear
       if (!firstMsg && chat.clearedBy && chat.clearedAt) {
         const msgsAfterClear = await Message.find({
           chat: chat._id,
           createdAt: { $gt: chat.clearedAt }
         }).session(session);
+
         firstMsg = msgsAfterClear.length === 0;
       }
 
-      // Create message documents for each media file
-      const promises = media.map(fileUrl => 
+      const promises = mediaFiles.map(file =>
         Message.create(
-          [{ 
-            chat: chat._id, 
-            sender: { senderId, senderType }, 
-            type: "image", 
-            content: fileUrl 
+          [{
+            chat: chat._id,
+            sender: { senderId, senderType },
+            type: file.type,
+            content: file.url
           }],
           { session }
         )
@@ -516,6 +536,7 @@ class ChatController {
           { isDelivered: true },
           { session }
         );
+
         messages = messages.map(m => ({ ...m.toObject(), isDelivered: true }));
       }
 
@@ -537,7 +558,7 @@ class ChatController {
               },
               messages: [{
                 _id: msg._id,
-                receiver: { _id: toUser._id }, 
+                receiver: { _id: toUser._id },
                 content: msg.content,
                 type: msg.type,
                 isDelivered: msg.isDelivered,
@@ -560,7 +581,7 @@ class ChatController {
             io.to(pId).emit("message", {
               ...(msg.toObject ? msg.toObject() : msg),
               sender: undefined,
-              receiver: { _id: toUser._id }, 
+              receiver: { _id: toUser._id },
               isMyMsg: isSender
             });
 
@@ -575,7 +596,7 @@ class ChatController {
         });
       });
 
-      // Send push notification if receiver has token
+      // Push Notification
       if (toUser?.notificationToken) {
         sendMediaNotification({
           fromUser: req.user,
@@ -599,26 +620,28 @@ class ChatController {
             fullName: toUser.fullName,
             type: otherParticipant.participantType
           },
-          messages: messages.map(m => ({ 
-            ...(m.toObject ? m.toObject() : m), 
-            sender: undefined, 
-            isMyMsg: true 
+          messages: messages.map(m => ({
+            ...(m.toObject ? m.toObject() : m),
+            sender: undefined,
+            isMyMsg: true
           })),
           unreadMessagesCount: 0,
           blocked: false
         } : undefined,
-        messages: firstMsg ? undefined : messages.map(m => ({ 
-          ...(m.toObject ? m.toObject() : m), 
-          sender: undefined, 
-          isMyMsg: true 
+        messages: firstMsg ? undefined : messages.map(m => ({
+          ...(m.toObject ? m.toObject() : m),
+          sender: undefined,
+          isMyMsg: true
         }))
       });
+
     } catch (error) {
       if (session.inTransaction()) await session.abortTransaction();
       session.endSession();
       next(error);
     }
   });
+
 
   // Clear/delete chat history logic (per user)
   // Different behavior based on who cleared before
