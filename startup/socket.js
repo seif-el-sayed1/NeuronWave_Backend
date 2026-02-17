@@ -63,7 +63,6 @@ const getUserDetails = async (socket, token) => {
   }
 };
 
-// Send push notification for media messages
 // Only sent if the recipient is not currently viewing the chat
 const sendMediaNotification = ({ fromUser, toUser, roomId, image, count = 1 }) => {
   if (chatRoomUsers[roomId]?.has(toUser._id.toString())) {
@@ -92,6 +91,7 @@ module.exports = (server, app) => {
   });
 
   app.set("socketio", io);
+  app.set("onlineUsers", onlineUsers); 
 
   io.on("connection", async (socket) => {
     try {
