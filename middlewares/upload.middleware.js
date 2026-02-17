@@ -110,7 +110,7 @@ const uploadAnyImages = imageConfiguration.any([
 
 const uploadMedia = uploadMediaConfiguration.any([
     { name: "video", maxCount: 10 },
-    { name: "chatImages", maxCount: 5 },
+    { name: "media", maxCount: 5 },
 ]);
 
 const uploadSingleImage = (fileKey) => imageConfiguration.single(fileKey);
