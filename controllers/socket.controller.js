@@ -7,10 +7,6 @@ const { sendNotification } = require("../utils/sendNotification");
 
 class SocketController {
 
-  // User joins a chat room
-  // - Adds user to socket room
-  // - Marks incoming messages as delivered & read
-  // - Notifies the other participant that messages have been seen
   joinChat = async (io, socket, userData, chatRoomUsers, { chatId }) => {
     try {
       if (!chatId) return socket.emit("error", "Chat ID is required");
@@ -20,14 +16,11 @@ class SocketController {
         return socket.emit("error", "Chat not found or unauthorized");
       }
 
-      // Join socket.io room
       socket.join(chatId.toString());
 
-      // Track online users per chat room
       if (!chatRoomUsers[chatId]) chatRoomUsers[chatId] = new Set();
       chatRoomUsers[chatId].add(userData._id.toString());
 
-      // Mark all unread incoming messages as delivered and read
       await Message.updateMany(
         { 
           chat: chatId, 
@@ -36,7 +29,6 @@ class SocketController {
         { isDelivered: true, isRead: true }
       );
 
-      // Notify the other person that their messages were seen
       const otherParticipant = chat.getOtherParticipant(userData._id);
       if (otherParticipant) {
         io.to(otherParticipant.participantId.toString()).emit("messages-seen", {
@@ -50,7 +42,6 @@ class SocketController {
     }
   };
 
-  // Notify the other participant that current user started typing
   startTyping = async (socket, userData, { chatId }) => {
     try {
       if (!chatId) return socket.emit("error", "Chat ID is required");
@@ -60,7 +51,6 @@ class SocketController {
         return socket.emit("error", "Chat not found or unauthorized");
       }
 
-      // Send typing event only to the other participant
       chat.participants.forEach((participant) => {
         if (participant.participantId.toString() !== userData._id.toString()) {
           socket.to(participant.participantId.toString()).emit("typing", {
@@ -76,7 +66,6 @@ class SocketController {
     }
   };
 
-  // Notify the other participant that typing has stopped
   stopTyping = async (socket, userData, { chatId }) => {
     try {
       if (!chatId) return socket.emit("error", "Chat ID is required");
@@ -101,13 +90,6 @@ class SocketController {
     }
   };
 
-  // Core real-time message sending logic
-  // Handles:
-  // - Creating new chat if needed
-  // - Block check (user ↔ user only)
-  // - First message after clear logic
-  // - Emitting new-chat or message event
-  // - Sending push notification if receiver is offline
   sendChatMessage = async (io, socket, userData, chatRoomUsers, data, onlineUsers) => {
     try {
       let { content, chatId, otherUserId, otherUserType, type = "text" } = data;
@@ -119,12 +101,10 @@ class SocketController {
         return socket.emit("error", "Cannot provide both chatId and otherUserId");
       }
 
-      // Create or find chat when sending to a specific user
       if (otherUserId) {
         const senderType = userData.role === "doctor" ? "Doctor" : "User";
         const receiverType = otherUserType || "User";
 
-        // Block check — only between two regular users
         if (senderType === "User" && receiverType === "User") {
           const otherUser = await User.findById(otherUserId).select("_id blockedUsers");
           if (!otherUser) return socket.emit("error", "User not found");
@@ -151,13 +131,11 @@ class SocketController {
           firstMsg = true;
         }
 
-        // Join the newly created/found chat room
         socket.join(chat._id.toString());
         if (!chatRoomUsers[chat._id]) chatRoomUsers[chat._id] = new Set();
         chatRoomUsers[chat._id].add(userData._id.toString());
         chatId = chat._id.toString();
       } 
-      // Existing chat provided
       else if (chatId) {
         chat = await Chat.findById(chatId);
         if (!chat || !chat.hasParticipant(userData._id)) {
@@ -167,7 +145,6 @@ class SocketController {
 
       const senderType = userData.role === "doctor" ? "Doctor" : "User";
 
-      // Create the message document
       const newMessage = await Message.create({
         chat: chatId,
         sender: { senderId: userData._id, senderType },
@@ -177,15 +154,31 @@ class SocketController {
         isRead: false
       });
 
-      // Populate participants to get full user/doctor data
       const populatedChat = await Chat.findById(chatId).populate(
         "participants.participantId",
         "_id fullName profilePicture notificationToken lang"
       );
 
-      // Determine if this is the "first visible message" after clear for each participant
+      const otherParticipantObj = populatedChat.participants.find(
+        p => p.participantId._id.toString() !== userData._id.toString()
+      );
+      const receiverId = otherParticipantObj?.participantId._id.toString();
+      const receiverIsOnline = !!(onlineUsers && receiverId && (
+        typeof onlineUsers.has === "function"
+          ? onlineUsers.has(receiverId)
+          : Array.isArray(onlineUsers)
+            ? onlineUsers.includes(receiverId)
+            : false
+      ));
+
+      if (receiverIsOnline) {
+        await Message.findByIdAndUpdate(newMessage._id, { isDelivered: true });
+        newMessage.isDelivered = true;
+      }
+
       for (let participant of populatedChat.participants) {
         const participantId = participant.participantId._id.toString();
+        const isMe = participantId === userData._id.toString();
 
         if (populatedChat.clearedBy) {
           if (populatedChat.clearedBy.toString() === participantId) {
@@ -208,7 +201,6 @@ class SocketController {
         );
 
         if (firstMsg) {
-          // Send full "new chat" event with first message
           io.to(participantId).emit("new-chat", {
             _id: chatId,
             to: {
@@ -221,29 +213,45 @@ class SocketController {
               _id: newMessage._id,
               sender: {
                 _id: userData._id,
-                fullName: participantId === userData._id.toString() ? "You" : (userData.fullName || userData.firstName)
+                fullName: isMe ? "You" : (userData.fullName || userData.firstName)
               },
+              receiver: { _id: otherParticipantObj?.participantId._id }, // ✅
               content: newMessage.content,
               type: newMessage.type,
               isDelivered: newMessage.isDelivered,
               isRead: newMessage.isRead,
-              isMyMsg: participantId === userData._id.toString(),
+              isMyMsg: isMe,
               createdAt: newMessage.createdAt
             }],
-            unreadMessagesCount: participantId === userData._id.toString() ? 0 : 1,
+            unreadMessagesCount: isMe ? 0 : 1,
             blocked: false
           });
+
+          if (isMe && receiverIsOnline) {
+            io.to(userData._id.toString()).emit("message-delivered", {
+              chatId,
+              messageId: newMessage._id,
+              messageTime: newMessage.createdAt
+            });
+          }
         } else {
-          // Normal message event
           io.to(participantId).emit("message", {
             ...newMessage.toObject(),
             sender: undefined,
-            isMyMsg: participantId === userData._id.toString()
+            receiver: { _id: otherParticipantObj?.participantId._id }, 
+            isMyMsg: isMe
           });
+
+          if (isMe && receiverIsOnline) {
+            io.to(userData._id.toString()).emit("message-delivered", {
+              chatId,
+              messageId: newMessage._id,
+              messageTime: newMessage.createdAt
+            });
+          }
         }
       }
 
-      // Push notification if receiver is offline
       const otherParticipant = populatedChat.participants.find(
         p => p.participantId._id.toString() !== userData._id.toString()
       );
