@@ -117,7 +117,6 @@ module.exports = (server, app) => {
                 caseType: "call",
                 info: roomId,
               });
-              console.log(receiver.lang)
             }
 
             socket.emit("call-failed", { reason: "User is offline" });
