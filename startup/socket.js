@@ -144,6 +144,14 @@ module.exports = (server, app) => {
         });
       });
 
+      //  Notify the other user that the call has ended
+      socket.on("call-ended", ({ otherUserId, roomId }) => {
+        io.to(otherUserId.toString()).emit("call-ended", {
+          endedBy: userData._id.toString(),
+          roomId,
+        });
+      });
+
       // Disconnect 
       socket.on("disconnect", () => {
         onlineUsers.delete(userData._id.toString());
