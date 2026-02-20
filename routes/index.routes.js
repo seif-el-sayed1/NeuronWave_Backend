@@ -15,6 +15,7 @@ let hospitals = require("./hospital.routes")
 let superDoctorRoutes = require("./superDoctor.routes")
 let paymentRoutes = require("./payment.routes")
 let chatRoutes = require("./chat.routes")
+let zegoRoutes = require("./zego.routes")
 
 appRouter.use(`${BASE_URL}/users/auth`, userAuthRoutes);
 appRouter.use(`${BASE_URL}/doctors/auth`, doctorAuthRoutes);
@@ -30,6 +31,7 @@ appRouter.use(`${BASE_URL}/hospitals`, hospitals);
 appRouter.use(`${BASE_URL}/super-doctor`, superDoctorRoutes);
 appRouter.use(`${BASE_URL}/payments`, paymentRoutes);
 appRouter.use(`${BASE_URL}/chats`, chatRoutes);
+appRouter.use(`${BASE_URL}/zego`, zegoRoutes);
 
 
 appRouter.get("/", (req, res) => {
