@@ -112,11 +112,12 @@ module.exports = (server, app) => {
             if (receiver?.notificationToken) {
               sendNotification({
                 token: receiver.notificationToken,
-                title: `📞 ${translate("Incoming Call", receiver)}`,
+                title: `📞 ${translate("Incoming Call", receiver.lang)}`,
                 body: `${callerName || userData.fullName || userData.firstName} is calling you`,
                 caseType: "call",
                 info: roomId,
               });
+              console.log(receiver.lang)
             }
 
             socket.emit("call-failed", { reason: "User is offline" });
