@@ -162,7 +162,10 @@ const ar = {
   "City not found": "المدينة غير موجودة",
   // super doctor
   "Invalid medical number format" : "تنسيق الرقم طبي غير صالح",
-  "medicalNumber is already used" : "الرقم الطبي مستخدم بالفعل"
+  "medicalNumber is already used" : "الرقم الطبي مستخدم بالفعل",
+  // socket
+  "Incoming Call" : "مكالمة واردة",
+  "New message from" : "رسالة جديدة من",
 };
 
 function translateNumbers(input, lang = "en") {
