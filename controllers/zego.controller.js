@@ -41,3 +41,29 @@ function generateToken(userId, roomId) {
 
   return { token, expire };
 }
+
+exports.generateZegoToken = async (req, res, next) => {
+  try {
+    const userId = req.user._id.toString();
+    const { roomId } = req.body;
+
+    // Basic validation
+    if (!roomId) return next(new ApiError("Room ID is required", 400));
+    if (!APP_ID || !SERVER_SECRET) return next(new ApiError("Zego credentials not configured", 500));
+
+    const { token, expire } = generateToken(userId, roomId);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        token,
+        appId: APP_ID,
+        userId,
+        roomId,
+        expire,
+      },
+    });
+  } catch (error) {
+    next(new ApiError(error.message, 500));
+  }
+};
