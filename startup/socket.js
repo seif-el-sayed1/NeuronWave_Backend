@@ -5,6 +5,7 @@ const Doctor = require("../models/doctor.model");
 
 const SocketController = require("../controllers/socket.controller");
 const { sendNotification } = require("../utils/sendNotification");
+const { translate } = require("../utils/translation");
 
 const onlineUsers = new Set();
 const chatRoomUsers = {};
@@ -23,31 +24,13 @@ const getUserDetails = async (socket, token) => {
     const decoded = await jwt.verify(token, process.env.JWT_SECRET);
 
     let currentUser = await User.findById(decoded.userId);
-    if (!currentUser) {
-      currentUser = await Doctor.findById(decoded.userId);
-    }
+    if (!currentUser) currentUser = await Doctor.findById(decoded.userId);
 
-    if (!currentUser) {
-      socket.emit("error", "User/Doctor not found");
-      return null;
-    }
+    if (!currentUser) { socket.emit("error", "User/Doctor not found"); return null; }
+    if (currentUser.token !== token) { socket.emit("error", "Session expired or invalid token"); return null; }
+    if (!currentUser.isActive) { socket.emit("error", "Account is deactivated"); return null; }
+    if (currentUser.isBlocked) { socket.emit("error", "Account is blocked"); return null; }
 
-    if (currentUser.token !== token) {
-      socket.emit("error", "Session expired or invalid token");
-      return null;
-    }
-
-    if (!currentUser.isActive) {
-      socket.emit("error", "Account is deactivated");
-      return null;
-    }
-
-    if (currentUser.isBlocked) {
-      socket.emit("error", "Account is blocked");
-      return null;
-    }
-
-    // Check if password was changed after token was issued
     if (
       currentUser.passwordChangedAt &&
       parseInt(currentUser.passwordChangedAt.getTime() / 1000, 10) > decoded.iat
@@ -65,15 +48,12 @@ const getUserDetails = async (socket, token) => {
 
 // Only sent if the recipient is not currently viewing the chat
 const sendMediaNotification = ({ fromUser, toUser, roomId, image, count = 1 }) => {
-  if (chatRoomUsers[roomId]?.has(toUser._id.toString())) {
-    return;
-  }
-
+  if (chatRoomUsers[roomId]?.has(toUser._id.toString())) return;
   if (!toUser.notificationToken) return;
 
   sendNotification({
     token: toUser.notificationToken,
-    title: `New message from ${fromUser.fullName || fromUser.firstName}`,
+    title: `${translate("New message from", toUser.lang)} ${fromUser.fullName.split(" ")[0]}`,
     body: count > 1 ? `${count} photos` : "Photo",
     image,
     caseType: "chat",
@@ -83,15 +63,11 @@ const sendMediaNotification = ({ fromUser, toUser, roomId, image, count = 1 }) =
 
 module.exports = (server, app) => {
   io = socketio(server, {
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST"],
-      credentials: true
-    }
+    cors: { origin: "*", methods: ["GET", "POST"], credentials: true }
   });
 
   app.set("socketio", io);
-  app.set("onlineUsers", onlineUsers); 
+  app.set("onlineUsers", onlineUsers);
 
   io.on("connection", async (socket) => {
     try {
@@ -109,41 +85,51 @@ module.exports = (server, app) => {
       // Sync delivery & read status for all existing messages on connect
       SocketController.messagesDeliveredOnConnect(io, socket, userData, chatRoomUsers);
 
-      // Typing events
-      socket.on("typing", (data) => 
-        SocketController.startTyping(socket, userData, data)
-      );
+      // Chat Events
+      socket.on("typing", (data) => SocketController.startTyping(socket, userData, data));
+      socket.on("stop-typing", (data) => SocketController.stopTyping(socket, userData, data));
+      socket.on("message-delivered", (data) => SocketController.messageDelivered(io, socket, userData, chatRoomUsers, data));
+      socket.on("join-chat", (data) => SocketController.joinChat(io, socket, userData, chatRoomUsers, data));
+      socket.on("leave-chat", (data) => SocketController.leaveChat(socket, userData, chatRoomUsers, data));
+      socket.on("new-message", (data) => SocketController.sendChatMessage(io, socket, userData, chatRoomUsers, data, Array.from(onlineUsers)));
 
-      socket.on("stop-typing", (data) => 
-        SocketController.stopTyping(socket, userData, data)
-      );
+      // Handle outgoing call request and notify receiver (socket or push) 
+      socket.on("call-user", async ({ receiverId, roomId, callerName, callerPicture }) => {
+        const isOnline = onlineUsers.has(receiverId?.toString());
 
-      // Client confirms message delivery
-      socket.on("message-delivered", (data) =>
-        SocketController.messageDelivered(io, socket, userData, chatRoomUsers, data)
-      );
+        if (isOnline) {
+          io.to(receiverId.toString()).emit("incoming-call", {
+            callerId: userData._id.toString(),
+            callerName: callerName || userData.fullName || userData.firstName,
+            callerPicture: callerPicture || userData.profilePicture || "",
+            roomId,
+          });
+        } else {
+          try {
+            let receiver = await User.findById(receiverId).select("notificationToken fullName lang");
+            if (!receiver) receiver = await Doctor.findById(receiverId).select("notificationToken fullName lang");
 
-      // Join / leave specific chat rooms
-      socket.on("join-chat", (data) =>
-        SocketController.joinChat(io, socket, userData, chatRoomUsers, data)
-      );
+            if (receiver?.notificationToken) {
+              sendNotification({
+                token: receiver.notificationToken,
+                title: `📞 ${translate("Incoming Call", receiver)}`,
+                body: `${callerName || userData.fullName || userData.firstName} is calling you`,
+                caseType: "call",
+                info: roomId,
+              });
+            }
 
-      socket.on("leave-chat", (data) =>
-        SocketController.leaveChat(socket, userData, chatRoomUsers, data)
-      );
+            socket.emit("call-failed", { reason: "User is offline" });
 
-      // Main text message sending event
-      socket.on("new-message", (data) =>
-        SocketController.sendChatMessage(
-          io,
-          socket,
-          userData,
-          chatRoomUsers,
-          data,
-          Array.from(onlineUsers)
-        )
-      );
+          } catch (err) {
+            console.error("Error sending call notification:", err);
+            socket.emit("call-failed", { reason: "User is offline" });
+          }
+        }
+      });
 
+
+      // Disconnect 
       socket.on("disconnect", () => {
         onlineUsers.delete(userData._id.toString());
         SocketController.leaveAllChats(socket, userData, chatRoomUsers);
