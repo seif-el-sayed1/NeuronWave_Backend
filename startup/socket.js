@@ -128,6 +128,14 @@ module.exports = (server, app) => {
         }
       });
 
+      // Notify caller that the receiver accepted the call
+      socket.on("call-accepted", ({ callerId, roomId }) => {
+        io.to(callerId.toString()).emit("call-accepted", {
+          acceptedBy: userData._id.toString(),
+          roomId,
+        });
+      });
+
 
       // Disconnect 
       socket.on("disconnect", () => {
