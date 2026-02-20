@@ -136,6 +136,13 @@ module.exports = (server, app) => {
         });
       });
 
+      // Notify caller that the receiver rejected the call
+      socket.on("call-rejected", ({ callerId, roomId }) => {
+        io.to(callerId.toString()).emit("call-rejected", {
+          rejectedBy: userData._id.toString(),
+          roomId,
+        });
+      });
 
       // Disconnect 
       socket.on("disconnect", () => {
