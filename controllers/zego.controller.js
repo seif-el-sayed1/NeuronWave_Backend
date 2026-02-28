@@ -1,22 +1,12 @@
 const crypto   = require("crypto");
 const ApiError = require("../utils/ApiError");
 
-const APP_ID = parseInt(process.env.ZEGO_APP_ID);
+const APP_ID        = parseInt(process.env.ZEGO_APP_ID);
 const SERVER_SECRET = process.env.ZEGO_SERVER_SECRET;
 
-/**
- * Generates a secure ZEGOCLOUD UIKit token on the backend so authenticated
- * users can join real-time audio/video rooms.
- *
- * It creates a payload (app ID, user ID, timestamps, expiry), encrypts it
- * with AES-256-CBC using the server secret, and formats it exactly as
- * required by the ZEGOCLOUD UIKit Prebuilt SDK.
- *
- * The frontend uses the returned token with ZegoUIKitPrebuilt.create(token).
- * This must run on the server to keep the SERVER_SECRET private and ensure
- * the token is time-limited and secure for production use.
- */
-
+// ─────────────────────────────────────────────────────────────
+// Web Kit Token  →  used by React (ZegoUIKitPrebuilt.create)
+// ─────────────────────────────────────────────────────────────
 function generateKitToken(appId, serverSecret, roomId, userId, userName, effectiveSeconds = 7200) {
   const now    = Date.now() / 1000 | 0;
   const expire = now + effectiveSeconds;
@@ -24,18 +14,15 @@ function generateKitToken(appId, serverSecret, roomId, userId, userName, effecti
 
   const payload = JSON.stringify({ app_id: appId, user_id: userId, nonce, ctime: now, expire });
 
-  // Random 16-char IV string (same as UIKit)
   let iv = Math.random().toString().substring(2, 18);
   if (iv.length < 16) iv += iv.substring(0, 16 - iv.length);
 
-  // AES-256-CBC encryption using server secret
   const key    = Buffer.from(serverSecret, "utf8");
   const ivBuf  = Buffer.from(iv, "utf8");
   const cipher = crypto.createCipheriv("aes-256-cbc", key, ivBuf);
   const h      = Buffer.concat([cipher.update(payload, "utf8"), cipher.final()]);
   const c      = h.length;
 
-  // Binary struct layout required by UIKit
   const struct = Buffer.alloc(28 + c);
   struct.writeUInt32BE(0, 0);
   struct.writeUInt32LE(expire, 4);
@@ -59,6 +46,46 @@ function generateKitToken(appId, serverSecret, roomId, userId, userName, effecti
   };
 }
 
+// ─────────────────────────────────────────────────────────────
+// Flutter User Token  →  used by Flutter (ZegoUIKitPrebuiltCall)
+// Standard ZEGO Server Token — no #meta suffix
+// ─────────────────────────────────────────────────────────────
+function generateFlutterToken(appId, serverSecret, userId, roomId, effectiveSeconds = 3600) {
+  const now    = Math.floor(Date.now() / 1000);
+  const expire = now + effectiveSeconds;
+  const nonce  = Math.floor(Math.random() * 2147483647);
+
+  const payload = JSON.stringify({
+    app_id:  appId,
+    user_id: userId,
+    nonce:   nonce,
+    ctime:   now,
+    expire:  expire,
+    payload: "",
+  });
+
+  const key       = Buffer.from(serverSecret, "utf8");
+  const iv        = crypto.randomBytes(16);
+  const cipher    = crypto.createCipheriv("aes-256-cbc", key, iv);
+  const encrypted = Buffer.concat([cipher.update(payload, "utf8"), cipher.final()]);
+
+  // Binary layout: [4B reserved][4B expire][16B iv][2B enc_len][encryptedBytes]
+  const result = Buffer.alloc(8 + 16 + 2 + encrypted.length);
+  result.writeUInt32BE(0, 0);
+  result.writeUInt32LE(expire, 4);
+  iv.copy(result, 8);
+  result.writeUInt16BE(encrypted.length, 24);
+  encrypted.copy(result, 26);
+
+  return {
+    token:  "04" + result.toString("base64"),
+    expire: expire,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// POST /zego/token  →  Web (React)
+// ─────────────────────────────────────────────────────────────
 exports.generateZegoToken = async (req, res, next) => {
   try {
     const userId   = req.user._id.toString();
@@ -71,6 +98,30 @@ exports.generateZegoToken = async (req, res, next) => {
       return next(new ApiError("Zego credentials not configured", 500));
 
     const { token, expire } = generateKitToken(APP_ID, SERVER_SECRET, roomId, userId, userName);
+
+    res.status(200).json({
+      success: true,
+      data: { token, appId: APP_ID, userId, roomId, expire },
+    });
+  } catch (error) {
+    next(new ApiError(error.message, 500));
+  }
+};
+
+// ─────────────────────────────────────────────────────────────
+// POST /zego/token-flutter  →  Flutter
+// ─────────────────────────────────────────────────────────────
+exports.generateZegoTokenFlutter = async (req, res, next) => {
+  try {
+    const userId = req.user._id.toString();
+    const { roomId } = req.body;
+
+    if (!roomId)
+      return next(new ApiError("Room ID is required", 400));
+    if (!APP_ID || !SERVER_SECRET)
+      return next(new ApiError("Zego credentials not configured", 500));
+
+    const { token, expire } = generateFlutterToken(APP_ID, SERVER_SECRET, userId, roomId);
 
     res.status(200).json({
       success: true,
