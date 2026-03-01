@@ -1,28 +1,32 @@
 const crypto   = require("crypto");
 const ApiError = require("../utils/ApiError");
 
-const APP_ID        = parseInt(process.env.ZEGO_APP_ID);
+// Read Zego credentials from environment
+const APP_ID = parseInt(process.env.ZEGO_APP_ID);
 const SERVER_SECRET = process.env.ZEGO_SERVER_SECRET;
 
-// ─────────────────────────────────────────────────────────────
-// Web Kit Token  →  used by React (ZegoUIKitPrebuilt.create)
-// ─────────────────────────────────────────────────────────────
+// Token generator for Web / ZegoUIKit
 function generateKitToken(appId, serverSecret, roomId, userId, userName, effectiveSeconds = 7200) {
-  const now    = Date.now() / 1000 | 0;
-  const expire = now + effectiveSeconds;
-  const nonce  = 2147483647 * Math.random() | 0;
+  const now    = Date.now() / 1000 | 0;          // current time (seconds)
+  const expire = now + effectiveSeconds;         // token expiration time
+  const nonce  = 2147483647 * Math.random() | 0; // random number to avoid replay
 
+  // Payload that will be encrypted
   const payload = JSON.stringify({ app_id: appId, user_id: userId, nonce, ctime: now, expire });
 
+  // Generate IV (16 bytes required for AES-256-CBC)
   let iv = Math.random().toString().substring(2, 18);
   if (iv.length < 16) iv += iv.substring(0, 16 - iv.length);
 
-  const key    = Buffer.from(serverSecret, "utf8");
-  const ivBuf  = Buffer.from(iv, "utf8");
+  const key = Buffer.from(serverSecret, "utf8"); // encryption key
+  const ivBuf = Buffer.from(iv, "utf8");
   const cipher = crypto.createCipheriv("aes-256-cbc", key, ivBuf);
-  const h      = Buffer.concat([cipher.update(payload, "utf8"), cipher.final()]);
-  const c      = h.length;
 
+  // Encrypt payload
+  const h = Buffer.concat([cipher.update(payload, "utf8"), cipher.final()]);
+  const c = h.length;
+
+  // Build token structure required by Zego
   const struct = Buffer.alloc(28 + c);
   struct.writeUInt32BE(0, 0);
   struct.writeUInt32LE(expire, 4);
@@ -33,6 +37,7 @@ function generateKitToken(appId, serverSecret, roomId, userId, userName, effecti
   struct[27] = c & 0xff;
   h.copy(struct, 28);
 
+  // Extra metadata used by UIKit
   const meta = Buffer.from(JSON.stringify({
     userID:   userId,
     roomID:   roomId,
@@ -41,35 +46,32 @@ function generateKitToken(appId, serverSecret, roomId, userId, userName, effecti
   })).toString("base64");
 
   return {
-    token: `04${struct.toString("base64")}#${meta}`,
+    token: `04${struct.toString("base64")}#${meta}`, // final token format
     expire,
   };
 }
 
-// ─────────────────────────────────────────────────────────────
-// Flutter User Token  →  used by Flutter (ZegoUIKitPrebuiltCall)
-// Standard ZEGO Server Token — no #meta suffix
-// ─────────────────────────────────────────────────────────────
+// Token generator for Flutter SDK
 function generateFlutterToken(appId, serverSecret, userId, roomId, effectiveSeconds = 3600) {
-  const now    = Math.floor(Date.now() / 1000);
+  const now = Math.floor(Date.now() / 1000);
   const expire = now + effectiveSeconds;
-  const nonce  = Math.floor(Math.random() * 2147483647);
+  const nonce = Math.floor(Math.random() * 2147483647);
 
   const payload = JSON.stringify({
-    app_id:  appId,
+    app_id: appId,
     user_id: userId,
-    nonce:   nonce,
-    ctime:   now,
-    expire:  expire,
-    payload: "",
+    nonce: nonce,
+    ctime: now,
+    expire: expire,
+    payload: "", // required by Flutter implementation
   });
 
-  const key       = Buffer.from(serverSecret, "utf8");
-  const iv        = crypto.randomBytes(16);
-  const cipher    = crypto.createCipheriv("aes-256-cbc", key, iv);
+  const key = Buffer.from(serverSecret, "utf8");
+  const iv = crypto.randomBytes(16); // secure random IV
+  const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
   const encrypted = Buffer.concat([cipher.update(payload, "utf8"), cipher.final()]);
 
-  // Binary layout: [4B reserved][4B expire][16B iv][2B enc_len][encryptedBytes]
+  // Build final token buffer
   const result = Buffer.alloc(8 + 16 + 2 + encrypted.length);
   result.writeUInt32BE(0, 0);
   result.writeUInt32LE(expire, 4);
@@ -83,21 +85,22 @@ function generateFlutterToken(appId, serverSecret, userId, roomId, effectiveSeco
   };
 }
 
-// ─────────────────────────────────────────────────────────────
-// POST /zego/token  →  Web (React)
-// ─────────────────────────────────────────────────────────────
+// Endpoint for Web clients
 exports.generateZegoToken = async (req, res, next) => {
   try {
-    const userId   = req.user._id.toString();
+    const userId = req.user._id.toString();
     const userName = req.user.fullName || req.user.firstName || req.user.name || "Unknown";
     const { roomId } = req.body;
 
     if (!roomId)
       return next(new ApiError("Room ID is required", 400));
+
+    // Ensure Zego credentials exist
     if (!APP_ID || !SERVER_SECRET)
       return next(new ApiError("Zego credentials not configured", 500));
 
-    const { token, expire } = generateKitToken(APP_ID, SERVER_SECRET, roomId, userId, userName);
+    const { token, expire } =
+      generateKitToken(APP_ID, SERVER_SECRET, roomId, userId, userName);
 
     res.status(200).json({
       success: true,
@@ -108,9 +111,7 @@ exports.generateZegoToken = async (req, res, next) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────
-// POST /zego/token-flutter  →  Flutter
-// ─────────────────────────────────────────────────────────────
+// Endpoint for Flutter clients
 exports.generateZegoTokenFlutter = async (req, res, next) => {
   try {
     const userId = req.user._id.toString();
@@ -118,10 +119,12 @@ exports.generateZegoTokenFlutter = async (req, res, next) => {
 
     if (!roomId)
       return next(new ApiError("Room ID is required", 400));
+
     if (!APP_ID || !SERVER_SECRET)
       return next(new ApiError("Zego credentials not configured", 500));
 
-    const { token, expire } = generateFlutterToken(APP_ID, SERVER_SECRET, userId, roomId);
+    const { token, expire } =
+      generateFlutterToken(APP_ID, SERVER_SECRET, userId, roomId);
 
     res.status(200).json({
       success: true,
