@@ -1,10 +1,11 @@
 const router = require("express").Router();
-const { generateZegoToken } = require("../controllers/zego.controller");
-const { generateZegoTokenFlutter } = require("../controllers/zego.controller");
+const ZegoController = require("../controllers/zego.controller");
+
 const { protect } = require("../middlewares/auth.middleware");
 
-router.post("/token", protect, generateZegoToken);
-
-router.post("/token-flutter", protect, generateZegoTokenFlutter);
+// token for frontend
+router.post("/token", protect, ZegoController.generateZegoToken);
+// token for flutter
+router.post("/token-flutter", protect, ZegoController.generateZegoTokenFlutter);
 
 module.exports = router;
