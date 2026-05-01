@@ -120,7 +120,7 @@ class ApiFeatures {
             currentPage: page,         
             limit: limit,              
             totalPages: totalPages,    
-            totalItems: totalDocs,     // total number of documents
+            totalResults: totalDocs,     // total number of documents
             hasNextPage: page < totalPages, // is there a next page
             hasPrevPage: page > 1      // is there a previous page
         };
