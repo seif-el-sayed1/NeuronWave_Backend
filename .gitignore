@@ -15,3 +15,4 @@ serviceAccount-Firebase-*.json
 *.txt
 !runtime.txt
 !requirements.txt
+firebaseServiceAccountKey.json
